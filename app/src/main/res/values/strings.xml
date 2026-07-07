@@ -3,7 +3,9 @@
     <string name="select_file">Select File</string>
     <string name="install">Install</string>
     <string name="no_file_selected">No file selected</string>
-    <string name="tap_to_select">Tap \"Select File\" to choose an APK, XAPK, APKS, APKM, APKV, or ZIP package.</string>
+    <string name="tap_to_select">Tap \"Select File\" to choose one or more APK, XAPK, APKS, APKM, APKV, or ZIP packages.</string>
+    <string name="queue_label">%1$d files queued</string>
+    <string name="queue_drag_hint">Drag to reorder</string>
     <string name="format_label">Format</string>
     <string name="size_label">Size</string>
     <string name="analyzing">Analyzing package…</string>
@@ -17,6 +19,7 @@
     <string name="ok">OK</string>
     <string name="select_all">Select All</string>
     <string name="deselect_all">Deselect All</string>
+    <string name="batch_progress">%1$d / %2$d</string>
 
     <string name="app_manager">App Manager</string>
     <string name="app_detail">App Detail</string>
@@ -96,6 +99,11 @@
     <string name="settings_debug_window_desc">Show debug log button on main screen (default: on)</string>
     <string name="settings_clear_cache">Clear Cache After Install</string>
     <string name="settings_clear_cache_desc">Delete temporary files after installation</string>
+    <string name="settings_dialog_style">Dialog style</string>
+    <string name="dialog_style_bottom_sheet">Bottom Sheet</string>
+    <string name="dialog_style_alert_dialog">Alert Dialog</string>
+    <string name="choose_dialog_style">Choose dialog style</string>
+
     <string name="settings_confirm_install">Confirm Before Install</string>
     <string name="settings_confirm_install_desc">Show confirmation dialog before installing</string>
     <string name="settings_theme">Theme</string>
@@ -124,12 +132,51 @@
     <string name="export_button">Export</string>
     <string name="apkv_unlock">Unlock</string>
     <string name="apkv_password_empty">Password cannot be empty</string>
+    <string name="apkv_wrong_password">Incorrect password</string>
+    <string name="apkv_tap_to_unlock">Tap to enter password</string>
 
     <string name="package_meta">%1$s v%2$s</string>
     <string name="label_sha256">SHA-256</string>
     <string name="separator_dot"> · </string>
     <string name="nav_right_arrow">›</string>
     <string name="app_icon_desc">App icon</string>
+
+    <string name="version_new_install">New installation · v%1$s</string>
+    <string name="version_upgrade">Upgrade v%1$s → v%2$s</string>
+    <string name="version_downgrade">Downgrade v%1$s → v%2$s</string>
+    <string name="version_reinstall">Reinstall · v%1$s</string>
+
+    <string name="notify_channel_install">Install Notifications</string>
+    <string name="notify_install_success_title">Installation complete</string>
+    <string name="notify_install_success_body">%s installed successfully</string>
+    <string name="notify_installing_title">Installing %s…</string>
+    <string name="notify_install_failed_title">Installation failed: %s</string>
+
+    <string name="history_title">Install History</string>
+    <string name="history_empty">No install history</string>
+    <string name="history_entry_count">%1$d install record(s)</string>
+    <string name="history_settings_desc">View and manage installation history</string>
+    <string name="history_view">View History</string>
+    <string name="history_clear_all">Clear History</string>
+    <string name="history_clear_title">Clear Install History</string>
+    <string name="history_clear_confirm">Are you sure you want to clear all install history?</string>
+    <string name="history_clear_yes">Clear</string>
+    <string name="history_cleared">Install history cleared</string>
+    <string name="history_status_success">Success</string>
+    <string name="history_status_failed">Failed</string>
+    <string name="history_status_cancelled">Cancelled</string>
+    <string name="history_detail_status">Status</string>
+    <string name="history_detail_package">Package</string>
+    <string name="history_detail_version">Version</string>
+    <string name="history_detail_format">Format</string>
+    <string name="history_detail_size">Size</string>
+    <string name="history_detail_mode">Install mode</string>
+    <string name="history_detail_duration">Duration</string>
+    <string name="history_detail_time">Time</string>
+    <string name="history_detail_info">Info</string>
+
+    <string name="notify_install_cancelled_title">Installation cancelled: %1$s</string>
+    <string name="notify_install_cancelled_body">The installation was cancelled by the user.</string>
 
     <plurals name="app_count">
         <item quantity="one">%1$d app</item>

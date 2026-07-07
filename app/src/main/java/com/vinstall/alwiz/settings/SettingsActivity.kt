@@ -19,7 +19,10 @@ import com.vinstall.alwiz.databinding.ActivitySettingsBinding
 import com.vinstall.alwiz.shizuku.ShizukuHelper
 import com.vinstall.alwiz.util.CrashHandler
 import com.vinstall.alwiz.util.DebugLog
+import com.vinstall.alwiz.settings.DialogHelper
 import com.vinstall.alwiz.root.RootHelper
+import com.vinstall.alwiz.history.InstallHistoryActivity
+import com.vinstall.alwiz.history.InstallHistoryManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,6 +66,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshCrashLogStatus()
+        refreshHistoryStatus()
     }
 
     private fun loadCurrentSettings() {
@@ -82,6 +86,12 @@ class SettingsActivity : AppCompatActivity() {
         binding.switchClearCache.isChecked = AppSettings.isClearCacheAfterInstall(this)
         binding.switchConfirmInstall.isChecked = AppSettings.isConfirmInstall(this)
 
+        val dialogStyle = AppSettings.getDialogStyle(this)
+        binding.textCurrentDialogStyle.text = when (dialogStyle) {
+            com.vinstall.alwiz.settings.DialogStyle.BOTTOM_SHEET -> getString(R.string.dialog_style_bottom_sheet)
+            com.vinstall.alwiz.settings.DialogStyle.ALERT_DIALOG -> getString(R.string.dialog_style_alert_dialog)
+        }
+
         val theme = AppSettings.getTheme(this)
         binding.textCurrentTheme.text = when (theme) {
             "light" -> getString(R.string.theme_light)
@@ -91,6 +101,7 @@ class SettingsActivity : AppCompatActivity() {
 
         refreshStatusLabels()
         refreshCrashLogStatus()
+        refreshHistoryStatus()
     }
 
     private fun updateModeUI(mode: InstallMode) {
@@ -131,6 +142,16 @@ class SettingsActivity : AppCompatActivity() {
         } else {
             binding.textRootStatus.text = ""
         }
+    }
+
+    private fun refreshHistoryStatus() {
+        val count = InstallHistoryManager.count(this)
+        binding.textHistoryStatus.text = if (count > 0)
+            getString(R.string.history_entry_count, count)
+        else
+            getString(R.string.history_empty)
+        binding.btnViewHistory.isEnabled = count > 0
+        binding.btnClearHistory.isEnabled = count > 0
     }
 
     private fun refreshCrashLogStatus() {
@@ -188,6 +209,30 @@ class SettingsActivity : AppCompatActivity() {
             showThemeDialog()
         }
 
+        binding.layoutDialogStyle.setOnClickListener {
+            showDialogStyleDialog()
+        }
+
+        binding.btnViewHistory.setOnClickListener {
+            startActivity(android.content.Intent(this, InstallHistoryActivity::class.java))
+        }
+
+        binding.btnClearHistory.setOnClickListener {
+            DialogHelper.showConfirmation(
+                activity = this,
+                title = getString(R.string.history_clear_title),
+                message = getString(R.string.history_clear_confirm),
+                positiveLabel = getString(R.string.history_clear_yes),
+                negativeLabel = getString(R.string.cancel),
+                isDangerous = true,
+                onConfirm = {
+                    InstallHistoryManager.clear(this)
+                    refreshHistoryStatus()
+                    Toast.makeText(this, getString(R.string.history_cleared), Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
         binding.btnViewCrashLog.setOnClickListener {
             val log = CrashHandler.readCrashLogTail(this)
             if (log.isNullOrBlank()) {
@@ -198,16 +243,19 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         binding.btnClearCrashLog.setOnClickListener {
-            AlertDialog.Builder(this)
-                .setTitle(getString(R.string.crash_log_clear_title))
-                .setMessage(getString(R.string.crash_log_clear_confirm))
-                .setPositiveButton(getString(R.string.crash_log_clear_yes)) { _, _ ->
+            DialogHelper.showConfirmation(
+                activity = this,
+                title = getString(R.string.crash_log_clear_title),
+                message = getString(R.string.crash_log_clear_confirm),
+                positiveLabel = getString(R.string.crash_log_clear_yes),
+                negativeLabel = getString(R.string.cancel),
+                isDangerous = true,
+                onConfirm = {
                     CrashHandler.clearCrashLog(this)
                     refreshCrashLogStatus()
                     Toast.makeText(this, getString(R.string.crash_log_cleared), Toast.LENGTH_SHORT).show()
                 }
-                .setNegativeButton(getString(R.string.cancel), null)
-                .show()
+            )
         }
     }
 
@@ -230,6 +278,26 @@ class SettingsActivity : AppCompatActivity() {
                 Toast.makeText(this, getString(R.string.log_copied), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(getString(R.string.crash_log_close), null)
+            .show()
+    }
+
+    private fun showDialogStyleDialog() {
+        val styles = arrayOf(
+            getString(R.string.dialog_style_bottom_sheet),
+            getString(R.string.dialog_style_alert_dialog)
+        )
+        val keys = arrayOf(DialogStyle.BOTTOM_SHEET, DialogStyle.ALERT_DIALOG)
+        val current = AppSettings.getDialogStyle(this)
+        val idx = keys.indexOf(current).coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.choose_dialog_style))
+            .setSingleChoiceItems(styles, idx) { dialog, which ->
+                AppSettings.setDialogStyle(this, keys[which])
+                binding.textCurrentDialogStyle.text = styles[which]
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 

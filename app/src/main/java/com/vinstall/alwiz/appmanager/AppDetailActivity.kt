@@ -23,6 +23,7 @@ import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.vinstall.alwiz.R
+import com.vinstall.alwiz.settings.DialogHelper
 import com.vinstall.alwiz.backup.BackupManager
 import com.vinstall.alwiz.backup.BackupState
 import com.vinstall.alwiz.backup.BackupViewModel
@@ -213,14 +214,15 @@ class AppDetailActivity : AppCompatActivity() {
             InstallMode.NORMAL -> getString(R.string.uninstall_confirm_message, app.label)
         }
 
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.uninstall_confirm_title))
-            .setMessage(msg)
-            .setPositiveButton(getString(R.string.uninstall)) { _, _ ->
-                performUninstall(app, mode)
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
+        DialogHelper.showConfirmation(
+            activity = this,
+            title = getString(R.string.uninstall_confirm_title),
+            message = msg,
+            positiveLabel = getString(R.string.uninstall),
+            negativeLabel = getString(R.string.cancel),
+            isDangerous = true,
+            onConfirm = { performUninstall(app, mode) }
+        )
     }
 
     private fun performUninstall(app: AppInfo, mode: InstallMode) {

@@ -8,6 +8,8 @@ import android.os.Build
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.FragmentActivity
+import com.vinstall.alwiz.settings.DialogHelper
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,17 +58,17 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
         return content
     }
 
-    fun showCrashDialogIfNeeded(activity: Activity) {
+    fun showCrashDialogIfNeeded(activity: FragmentActivity) {
         val report = readAndClearPending(activity) ?: return
 
-        AlertDialog.Builder(activity)
-            .setTitle("Crash Detected")
-            .setMessage("VInstall crashed on the previous session. The report has been saved to Settings → Crash Reports.")
-            .setPositiveButton("View Report") { _, _ ->
-                showReportDialog(activity, report)
-            }
-            .setNegativeButton("Dismiss", null)
-            .show()
+        DialogHelper.showConfirmation(
+            activity = activity,
+            title = "Crash Detected",
+            message = "VInstall crashed on the previous session. The report has been saved to Settings → Crash Reports.",
+            positiveLabel = "View Report",
+            negativeLabel = "Dismiss",
+            onConfirm = { showReportDialog(activity, report) }
+        )
     }
 
     private fun showReportDialog(activity: Activity, report: String) {

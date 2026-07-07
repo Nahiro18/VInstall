@@ -22,8 +22,11 @@ object MetadataReader {
     data class AppMeta(
         val packageName: String = "",
         val versionName: String = "",
+        val versionCode: Long = 0L,
         val appLabel: String = "",
-        val appIcon: Bitmap? = null
+        val appIcon: Bitmap? = null,
+        val minSdk: Int = 0,
+        val targetSdk: Int = 0
     )
 
     private val gson = GsonBuilder()
@@ -373,7 +376,7 @@ object MetadataReader {
             }
 
             if (packageName.isNotEmpty()) {
-                AppMeta(packageName, versionName, appLabel, iconBitmap)
+                AppMeta(packageName, versionName, 0L, appLabel, iconBitmap)
             } else {
                 DebugLog.w("MetadataReader", "APKM info.json missing or empty, falling back to base.apk")
                 val fallback = readFromApks(context, uri)
@@ -547,6 +550,12 @@ object MetadataReader {
 
             val packageName = pkgInfo.packageName ?: return AppMeta()
             val versionName = pkgInfo.versionName ?: ""
+            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pkgInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                pkgInfo.versionCode.toLong()
+            }
             val appLabel = pkgInfo.applicationInfo?.let { ai ->
                 ai.sourceDir = apkPath
                 ai.publicSourceDir = apkPath
@@ -587,7 +596,11 @@ object MetadataReader {
                 "MetadataReader",
                 "readApkFile: pkg=$packageName ver=$versionName label=$appLabel icon=${appIcon != null}"
             )
-            AppMeta(packageName, versionName, appLabel, appIcon)
+            val minSdk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                pkgInfo.applicationInfo?.minSdkVersion ?: 0
+            } else 0
+            val targetSdk = pkgInfo.applicationInfo?.targetSdkVersion ?: 0
+            AppMeta(packageName, versionName, versionCode, appLabel, appIcon, minSdk, targetSdk)
         } catch (e: Exception) {
             DebugLog.e("MetadataReader", "readApkFile failed: ${e.message}")
             AppMeta()

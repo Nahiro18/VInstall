@@ -12,6 +12,7 @@ object AppSettings {
     private const val KEY_CLEAR_CACHE_AFTER = "clear_cache_after"
     private const val KEY_CONFIRM_INSTALL = "confirm_install"
     private const val KEY_SHIZUKU_PERMISSION_GRANTED = "shizuku_permission_granted"
+    private const val KEY_DIALOG_STYLE = "dialog_style"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -60,5 +61,16 @@ object AppSettings {
 
     fun setShizukuPermissionGranted(context: Context, granted: Boolean) {
         prefs(context).edit().putBoolean(KEY_SHIZUKU_PERMISSION_GRANTED, granted).apply()
+    }
+
+    fun getDialogStyle(context: Context): DialogStyle =
+        try {
+            DialogStyle.valueOf(prefs(context).getString(KEY_DIALOG_STYLE, DialogStyle.BOTTOM_SHEET.name)!!)
+        } catch (_: Exception) {
+            DialogStyle.BOTTOM_SHEET
+        }
+
+    fun setDialogStyle(context: Context, style: DialogStyle) {
+        prefs(context).edit().putString(KEY_DIALOG_STYLE, style.name).apply()
     }
 }

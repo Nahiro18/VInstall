@@ -13,7 +13,8 @@ object ZipApkInstaller {
         context: Context,
         uri: Uri,
         onStep: (String) -> Unit,
-        selectedSplits: List<String>? = null
+        selectedSplits: List<String>? = null,
+        onProgress: ((Float) -> Unit)? = null
     ): Result<Unit> {
         return try {
             onStep("Inspecting ZIP contents...")
@@ -28,7 +29,7 @@ object ZipApkInstaller {
             DebugLog.i("ZipApkInstaller", "Found ${apkNames.size} APK(s) in ZIP")
             onStep("Installing APK(s)...")
             val apkFiles = cacheDir.listFiles { f -> f.name.endsWith(".apk") }?.toList() ?: emptyList()
-            SplitInstaller.installSplits(context, apkFiles, selectedSplits)
+            SplitInstaller.installSplits(context, apkFiles, selectedSplits, onProgress)
         } catch (e: Exception) {
             DebugLog.e("ZipApkInstaller", "Install failed: ${e.message}")
             Result.failure(e)

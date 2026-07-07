@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import com.vinstall.alwiz.receiver.InstallResultReceiver
 import com.vinstall.alwiz.settings.AppSettings
 import com.vinstall.alwiz.settings.InstallMode
@@ -18,10 +20,27 @@ import java.io.File
 
 object SplitInstaller {
 
+
+    private fun validateBaseApk(context: Context, apkFiles: List<File>): String? {
+        val base = apkFiles.firstOrNull { it.name.equals("base.apk", ignoreCase = true) }
+            ?: apkFiles.first()
+        @Suppress("DEPRECATION")
+        val pkgInfo = context.packageManager.getPackageArchiveInfo(base.absolutePath, 0)
+            ?: return "Invalid or corrupt package: cannot parse ${base.name}"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val minSdk = pkgInfo.applicationInfo?.minSdkVersion ?: 0
+            if (minSdk > Build.VERSION.SDK_INT) {
+                return "Incompatible package: requires API level $minSdk, device is ${Build.VERSION.SDK_INT}"
+            }
+        }
+        return null
+    }
+
     suspend fun installSplits(
         context: Context,
         apkFiles: List<File>,
-        selectedSplits: List<String>? = null
+        selectedSplits: List<String>? = null,
+        onProgress: ((Float) -> Unit)? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val filesToInstall = if (selectedSplits != null) {
             apkFiles.filter { f ->
@@ -42,10 +61,10 @@ object SplitInstaller {
         return@withContext when (mode) {
             InstallMode.ROOT -> {
                 if (RootHelper.isRooted()) {
-                    installViaRoot(filesToInstall)
+                    installViaRoot(filesToInstall, onProgress)
                 } else {
                     DebugLog.e("SplitInstaller", "ROOT mode selected but device is not rooted, falling back to session")
-                    installViaSession(context, filesToInstall)
+                    installViaSession(context, filesToInstall, onProgress)
                 }
             }
             InstallMode.SHIZUKU -> {
@@ -54,33 +73,37 @@ object SplitInstaller {
 
                 if (liveGranted || storedGranted) {
                     if (ShizukuHelper.isNewProcessAvailable()) {
-                        val result = installViaShizuku(context, filesToInstall)
+                        val result = installViaShizuku(context, filesToInstall, onProgress)
                         if (result.isFailure) {
                             AppSettings.setShizukuPermissionGranted(context, false)
                             DebugLog.e("SplitInstaller", "Shizuku install failed, falling back to session")
-                            installViaSession(context, filesToInstall)
+                            installViaSession(context, filesToInstall, onProgress)
                         } else {
                             result
                         }
                     } else {
                         DebugLog.e("SplitInstaller", "Shizuku newProcess not available, falling back to session")
-                        installViaSession(context, filesToInstall)
+                        installViaSession(context, filesToInstall, onProgress)
                     }
                 } else {
                     DebugLog.e("SplitInstaller", "SHIZUKU mode selected but Shizuku is not active/permitted, falling back to session")
-                    installViaSession(context, filesToInstall)
+                    installViaSession(context, filesToInstall, onProgress)
                 }
             }
-            InstallMode.NORMAL -> installViaSession(context, filesToInstall)
+            InstallMode.NORMAL -> installViaSession(context, filesToInstall, onProgress)
         }
     }
 
-    private suspend fun installViaSession(context: Context, apkFiles: List<File>): Result<Unit> =
+    private suspend fun installViaSession(
+        context: Context,
+        apkFiles: List<File>,
+        onProgress: ((Float) -> Unit)? = null
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             DebugLog.d("SplitInstaller", "installViaSession: ${apkFiles.size} file(s)")
             val installer = context.packageManager.packageInstaller
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-            
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 params.setInstallReason(PackageManager.INSTALL_REASON_USER)
             }
@@ -89,10 +112,29 @@ object SplitInstaller {
             val session = installer.openSession(sessionId)
 
             try {
+                val totalBytes = apkFiles.sumOf { it.length() }.coerceAtLeast(1L)
+                var writtenBytes = 0L
+                val buffer = ByteArray(65536)
+
+                val validationError = validateBaseApk(context, apkFiles)
+                if (validationError != null) {
+                    session.abandon()
+                    return@withContext Result.failure(Exception(validationError))
+                }
+
                 for (apk in apkFiles) {
                     DebugLog.d("SplitInstaller", "Writing ${apk.name} (${apk.length()} bytes)")
                     session.openWrite(apk.name, 0, apk.length()).use { out ->
-                        apk.inputStream().use { it.copyTo(out) }
+                        apk.inputStream().use { input ->
+                            var n: Int
+                            while (input.read(buffer).also { n = it } >= 0) {
+                                out.write(buffer, 0, n)
+                                writtenBytes += n
+                                val progress = (writtenBytes.toFloat() / totalBytes) * 0.9f
+                                session.setStagingProgress(progress)
+                                onProgress?.invoke(progress)
+                            }
+                        }
                         session.fsync(out)
                     }
                 }
@@ -104,6 +146,22 @@ object SplitInstaller {
                     context, sessionId, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                 )
+
+                val sessionCallback = object : PackageInstaller.SessionCallback() {
+                    override fun onCreated(sid: Int) {}
+                    override fun onBadgingChanged(sid: Int) {}
+                    override fun onActiveChanged(sid: Int, active: Boolean) {}
+                    override fun onProgressChanged(sid: Int, progress: Float) {
+                        if (sid == sessionId) onProgress?.invoke(0.9f + progress * 0.1f)
+                    }
+                    override fun onFinished(sid: Int, success: Boolean) {
+                        if (sid == sessionId) {
+                            installer.unregisterSessionCallback(this)
+                        }
+                    }
+                }
+                installer.registerSessionCallback(sessionCallback, Handler(Looper.getMainLooper()))
+
                 session.commit(pi.intentSender)
                 session.close()
                 DebugLog.d("SplitInstaller", "Session committed, id=$sessionId")
@@ -171,7 +229,11 @@ object SplitInstaller {
         return (stdout + stderr).trim()
     }
 
-    private suspend fun installViaShizuku(context: Context, apkFiles: List<File>): Result<Unit> =
+    private suspend fun installViaShizuku(
+        context: Context,
+        apkFiles: List<File>,
+        onProgress: ((Float) -> Unit)? = null
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val totalSize = apkFiles.sumOf { it.length() }
@@ -183,7 +245,7 @@ object SplitInstaller {
                 val sessionId = Regex("\\[(\\d+)]").find(createOutput)?.groupValues?.get(1)
                     ?: return@withContext Result.failure(Exception("Shizuku: failed to create install session: $createOutput"))
 
-                for (apk in apkFiles) {
+                apkFiles.forEachIndexed { index, apk ->
                     DebugLog.d("SplitInstaller", "Shizuku write: ${apk.name}")
                     val writeOutput = shizukuExecWithInput(
                         apk,
@@ -196,8 +258,10 @@ object SplitInstaller {
                             Exception("Failed to write ${apk.name}: $writeOutput")
                         )
                     }
+                    onProgress?.invoke(((index + 1).toFloat() / apkFiles.size) * 0.9f)
                 }
 
+                onProgress?.invoke(0.95f)
                 val commitOutput = shizukuExec("pm", "install-commit", sessionId)
                 DebugLog.d("SplitInstaller", "Shizuku commit: $commitOutput")
 
@@ -214,7 +278,10 @@ object SplitInstaller {
             }
         }
 
-    private suspend fun installViaRoot(apkFiles: List<File>): Result<Unit> =
+    private suspend fun installViaRoot(
+        apkFiles: List<File>,
+        onProgress: ((Float) -> Unit)? = null
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val totalSize = apkFiles.sumOf { it.length() }
@@ -231,12 +298,14 @@ object SplitInstaller {
                 val sessionId = Regex("\\[(\\d+)]").find(createOutput)?.groupValues?.get(1)
                     ?: return@withContext Result.failure(Exception("Root: failed to create install session"))
 
-                for (apk in apkFiles) {
+                apkFiles.forEachIndexed { index, apk ->
                     Runtime.getRuntime().exec(
                         arrayOf("su", "-c", "pm install-write -S ${apk.length()} $sessionId ${apk.name} ${apk.absolutePath}")
                     ).let { process -> process.waitFor() }
+                    onProgress?.invoke(((index + 1).toFloat() / apkFiles.size) * 0.9f)
                 }
 
+                onProgress?.invoke(0.95f)
                 val commitOutput = Runtime.getRuntime()
                     .exec(arrayOf("su", "-c", "pm install-commit $sessionId"))
                     .let { process ->

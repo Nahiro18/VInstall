@@ -12,7 +12,8 @@ object ApksInstaller {
         context: Context,
         uri: Uri,
         onStep: (String) -> Unit,
-        selectedSplits: List<String>? = null
+        selectedSplits: List<String>? = null,
+        onProgress: ((Float) -> Unit)? = null
     ): Result<Unit> {
         return try {
             onStep("Extracting splits...")
@@ -25,7 +26,7 @@ object ApksInstaller {
                 ?: emptyList()
             if (apkFiles.isEmpty()) return Result.failure(Exception("No APK splits found in archive"))
             onStep("Installing splits...")
-            SplitInstaller.installSplits(context, apkFiles, selectedSplits)
+            SplitInstaller.installSplits(context, apkFiles, selectedSplits, onProgress)
         } catch (e: Exception) {
             Result.failure(e)
         }

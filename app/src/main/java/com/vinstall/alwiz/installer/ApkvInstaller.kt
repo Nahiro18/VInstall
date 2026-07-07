@@ -125,6 +125,7 @@ object ApkvInstaller {
         password: String? = null,
         onStep: (String) -> Unit,
         selectedSplits: List<String>? = null,
+        onProgress: ((Float) -> Unit)? = null,
         onChecksumMismatch: (suspend (mismatches: List<String>) -> Boolean)? = null
     ): Result<Unit> {
         return try {
@@ -168,7 +169,7 @@ object ApkvInstaller {
             }
 
             onStep("Installing splits...")
-            SplitInstaller.installSplits(context, apkFiles, selectedSplits)
+            SplitInstaller.installSplits(context, apkFiles, selectedSplits, onProgress)
         } catch (e: Exception) {
             Result.failure(e)
         }

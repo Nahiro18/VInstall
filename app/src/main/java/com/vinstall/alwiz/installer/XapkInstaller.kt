@@ -21,7 +21,8 @@ object XapkInstaller {
         context: Context,
         uri: Uri,
         onStep: (String) -> Unit,
-        selectedSplits: List<String>? = null
+        selectedSplits: List<String>? = null,
+        onProgress: ((Float) -> Unit)? = null
     ): Result<Unit> {
         return try {
             onStep("Extracting package...")
@@ -47,7 +48,7 @@ object XapkInstaller {
                 if (apkFiles.isEmpty()) {
                     return Result.failure(Exception("No split APK files could be extracted from XAPK"))
                 }
-                SplitInstaller.installSplits(context, apkFiles, selectedSplits)
+                SplitInstaller.installSplits(context, apkFiles, selectedSplits, onProgress)
             } else {
                 val mainApk = cacheDir.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
                     ?: return Result.failure(Exception("No APK found inside XAPK"))
@@ -66,7 +67,7 @@ object XapkInstaller {
                 }
 
                 onStep("Installing APK...")
-                SplitInstaller.installSplits(context, listOf(mainApk))
+                SplitInstaller.installSplits(context, listOf(mainApk), onProgress = onProgress)
             }
         } catch (e: Exception) {
             DebugLog.e("XapkInstaller", "Install failed: ${e.message}")

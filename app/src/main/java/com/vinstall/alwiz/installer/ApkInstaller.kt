@@ -11,7 +11,8 @@ object ApkInstaller {
     suspend fun install(
         context: Context,
         uri: Uri,
-        onStep: (String) -> Unit
+        onStep: (String) -> Unit,
+        onProgress: ((Float) -> Unit)? = null
     ): Result<Unit> {
         return try {
             DebugLog.d("ApkInstaller", "install: $uri")
@@ -19,7 +20,7 @@ object ApkInstaller {
             val cachedApk = FileUtil.extractToCache(context, uri, "install.apk")
             DebugLog.d("ApkInstaller", "Cached: ${cachedApk.absolutePath}")
             onStep("Installing...")
-            SplitInstaller.installSplits(context, listOf(cachedApk))
+            SplitInstaller.installSplits(context, listOf(cachedApk), onProgress = onProgress)
         } catch (e: Exception) {
             DebugLog.e("ApkInstaller", "Error: ${e.message}")
             Result.failure(e)

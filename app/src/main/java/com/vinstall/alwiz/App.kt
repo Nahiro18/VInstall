@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import com.vinstall.alwiz.settings.AppSettings
 import com.vinstall.alwiz.util.CrashHandler
+import com.vinstall.alwiz.util.NotificationHelper
 
 class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
         CrashHandler.install(this)
+        NotificationHelper.createChannel(this)
         applyTheme(AppSettings.getTheme(this))
     }
 

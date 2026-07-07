@@ -5,6 +5,7 @@
     <uses-sdk tools:overrideLibrary="rikka.shizuku.provider,rikka.shizuku.api,rikka.shizuku.shared,rikka.shizuku.aidl" />
 
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.DELETE_PACKAGES" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -41,7 +42,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            
+        </activity>
+
+        <activity
+            android:name=".InstallIntentActivity"
+            android:exported="true"
+            android:theme="@style/Theme.UniversalInstaller.Transparent"
+            android:launchMode="singleTop">
             <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -51,22 +58,37 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="file" />
+                <data android:scheme="content" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\.xapk" />
+                <data android:pathPattern=".*\..*\.xapk" />
             </intent-filter>
             <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="file" />
+                <data android:scheme="content" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\.apks" />
+                <data android:pathPattern=".*\..*\.apks" />
             </intent-filter>
             <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="file" />
+                <data android:scheme="content" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\.apkm" />
+                <data android:pathPattern=".*\..*\.apkm" />
+            </intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\.apkv" />
+                <data android:pathPattern=".*\..*\.apkv" />
             </intent-filter>
             <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
@@ -77,8 +99,10 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="file" />
+                <data android:scheme="content" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\.zip" />
+                <data android:pathPattern=".*\..*\.zip" />
             </intent-filter>
         </activity>
 
@@ -101,6 +125,11 @@
             android:name=".settings.SettingsActivity"
             android:exported="false"
             android:label="@string/settings" />
+
+        <activity
+            android:name=".history.InstallHistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title" />
 
         <activity
             android:name=".DebugWindowActivity"

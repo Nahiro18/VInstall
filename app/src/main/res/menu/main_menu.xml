@@ -17,4 +17,9 @@
         android:title="@string/settings"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_history"
+        android:title="@string/history_title"
+        app:showAsAction="never" />
+
 </menu>

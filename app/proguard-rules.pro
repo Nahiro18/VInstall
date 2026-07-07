@@ -2,7 +2,9 @@
 -keep class com.vinstall.alwiz.parser.** { *; }
 -keep class com.vinstall.alwiz.apkv.** { *; }
 -keep class com.vinstall.alwiz.receiver.** { *; }
--keepclassmembers enum com.vinstall.alwiz.settings.InstallMode { *; }
+-keep enum com.vinstall.alwiz.settings.InstallMode { *; }
+-keep enum com.vinstall.alwiz.settings.DialogStyle { *; }
+-keep class com.vinstall.alwiz.ui.ConfirmationBottomSheet
 -keepattributes *Annotation*
 -keepclassmembers,allowobfuscation class * {
     @com.google.gson.annotations.SerializedName <fields>;
