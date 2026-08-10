@@ -108,16 +108,18 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnSelect.setOnClickListener { filePicker.launch(arrayOf("*/*")) }
 
+        // --- MODIFICACIÓN DE OPTIMIZACIÓN ---
         lifecycleScope.launch {
             viewModel.queueItems.collect { newItems ->
                 if (newItems.isEmpty()) return@collect
                 if (newItems.size != queueAdapter.itemCount) {
                     queueAdapter.setItems(newItems)
                 } else {
-                    newItems.forEach { queueAdapter.updateItem(it) }
+                    queueAdapter.updateAll(newItems) // Cambio aquí: O(N) en lugar de O(N^2)
                 }
             }
         }
+        // -------------------------------------
 
         binding.btnInstall.setOnClickListener {
             if (isQueueMode) {
