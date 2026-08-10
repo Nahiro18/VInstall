@@ -187,6 +187,12 @@
     <string name="share_apk">Share APK</string>
     <string name="share_apk_error">Could not share APK</string>
 
+    <!-- Advanced Search Filters -->
+    <string name="filter_size">Size filter</string>
+    <string name="filter_perms">Dangerous perms</string>
+    <string name="filter_splits">Split APKs</string>
+    <string name="choose_size_filter">Filter by size</string>
+
     <plurals name="app_count">
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
