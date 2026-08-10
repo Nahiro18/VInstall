@@ -100,7 +100,39 @@ object FileUtil {
         }
     }
 
+    // --- MODIFICACIÓN: Limpieza segura de caché ---
+    // Solo borra archivos/directorios que VInstall crea específicamente,
+    // en lugar de borrar TODO el directorio de caché.
     fun clearCache(context: Context) {
-        context.cacheDir.listFiles()?.forEach { it.deleteRecursively() }
+        val cacheDir = context.cacheDir
+        
+        // Prefijos de archivos temporales creados por MetadataReader
+        val metaPrefixes = listOf("meta_", "install.apk")
+        
+        // Directorios de extracción creados por los instaladores
+        val extractDirs = listOf("apks_extract", "xapk_extract", "apkv_extract")
+        
+        cacheDir.listFiles()?.forEach { file ->
+            val shouldDelete = when {
+                // Borrar directorios de extracción
+                file.isDirectory && file.name in extractDirs -> true
+                // Borrar archivos temporales de metadatos
+                !file.isDirectory && metaPrefixes.any { file.name.startsWith(it) } -> true
+                else -> false
+            }
+            
+            if (shouldDelete) {
+                try {
+                    if (file.isDirectory) {
+                        file.deleteRecursively()
+                    } else {
+                        file.delete()
+                    }
+                } catch (e: Exception) {
+                    DebugLog.e("FileUtil", "Failed to delete cache item: ${file.name}")
+                }
+            }
+        }
     }
+    // ----------------------------------------------
 }
