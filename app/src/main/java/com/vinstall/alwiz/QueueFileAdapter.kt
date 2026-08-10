@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
+import com.vinstall.alwiz.util.FileUtil
 import java.util.Collections
 
 data class QueueItem(
@@ -66,7 +67,7 @@ class QueueFileAdapter(
         if (item.packageName.isNotEmpty()) metaParts += item.packageName
         if (item.versionName.isNotEmpty()) metaParts += "v${item.versionName}"
         metaParts += item.formatLabel
-        if (item.fileSize > 0) metaParts += formatSize(item.fileSize)
+        if (item.fileSize > 0) metaParts += FileUtil.formatSize(item.fileSize)
         holder.textMeta.text = metaParts.joinToString(" · ")
 
         if (item.isEncryptedApkv) {
@@ -126,19 +127,14 @@ class QueueFileAdapter(
         notifyDataSetChanged()
     }
 
-    fun updateItem(updated: QueueItem) {
-        val idx = items.indexOfFirst { it.uri == updated.uri }
-        if (idx >= 0) {
-            items[idx] = updated
-            notifyItemChanged(idx)
+    // FUNCIÓN OPTIMIZADA: Actualiza la lista entera por índice en O(N)
+    fun updateAll(newItems: List<QueueItem>) {
+        for (i in newItems.indices) {
+            if (i < items.size && items[i] != newItems[i]) {
+                items[i] = newItems[i]
+                notifyItemChanged(i)
+            }
         }
-    }
-
-    private fun formatSize(bytes: Long): String = when {
-        bytes >= 1_073_741_824L -> "%.2f GB".format(bytes / 1_073_741_824.0)
-        bytes >= 1_048_576L -> "%.2f MB".format(bytes / 1_048_576.0)
-        bytes >= 1_024L -> "%.2f KB".format(bytes / 1_024.0)
-        else -> "$bytes B"
     }
 }
 
