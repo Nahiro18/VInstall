@@ -63,7 +63,6 @@ object BackupManager {
                     isSystemApp = isSystem,
                     isDebuggable = (appInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0,
                     isSplitApp = isSplit,
-                    icon = try { pm.getApplicationIcon(appInfo) } catch (_: Exception) { null },
                     requestedPermissions = pkgInfo.requestedPermissions?.toList() ?: emptyList()
                 )
             } catch (_: Exception) {
