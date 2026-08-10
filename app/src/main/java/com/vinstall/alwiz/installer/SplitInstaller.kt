@@ -17,9 +17,30 @@ import com.vinstall.alwiz.root.RootHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.lang.reflect.Method
 
 object SplitInstaller {
 
+    // Regex compilado una sola vez (optimización)
+    private val SESSION_ID_REGEX = Regex("\\[(\\d+)]")
+
+    // Métodos de Shizuku cacheados (optimización)
+    private var shizukuNewProcessMethod: Method? = null
+
+    private fun getShizukuNewProcessMethod(): Method {
+        return shizukuNewProcessMethod ?: run {
+            val clazz = Class.forName("rikka.shizuku.Shizuku")
+            val method = clazz.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            shizukuNewProcessMethod = method
+            method
+        }
+    }
 
     private fun validateBaseApk(context: Context, apkFiles: List<File>): String? {
         val base = apkFiles.firstOrNull { it.name.equals("base.apk", ignoreCase = true) }
@@ -163,25 +184,24 @@ object SplitInstaller {
                 installer.registerSessionCallback(sessionCallback, Handler(Looper.getMainLooper()))
 
                 session.commit(pi.intentSender)
-                session.close()
                 DebugLog.d("SplitInstaller", "Session committed, id=$sessionId")
                 Result.success(Unit)
             } catch (e: Exception) {
                 session.abandon()
                 DebugLog.e("SplitInstaller", "Session error: ${e.message}")
                 Result.failure(e)
+            } finally {
+                // Corrección: asegurar que la sesión se cierre siempre
+                try {
+                    session.close()
+                } catch (_: Exception) {
+                    // Ignorar errores al cerrar
+                }
             }
         }
 
     private fun shizukuExec(vararg cmd: String): String {
-        val clazz = Class.forName("rikka.shizuku.Shizuku")
-        val method = clazz.getDeclaredMethod(
-            "newProcess",
-            Array<String>::class.java,
-            Array<String>::class.java,
-            String::class.java
-        )
-        method.isAccessible = true
+        val method = getShizukuNewProcessMethod()
         val process = method.invoke(null, cmd, null, null) as rikka.shizuku.ShizukuRemoteProcess
         var stderr = ""
         val stderrThread = Thread {
@@ -196,14 +216,7 @@ object SplitInstaller {
     }
 
     private fun shizukuExecWithInput(inputFile: File, vararg cmd: String): String {
-        val clazz = Class.forName("rikka.shizuku.Shizuku")
-        val method = clazz.getDeclaredMethod(
-            "newProcess",
-            Array<String>::class.java,
-            Array<String>::class.java,
-            String::class.java
-        )
-        method.isAccessible = true
+        val method = getShizukuNewProcessMethod()
         val process = method.invoke(null, cmd, null, null) as rikka.shizuku.ShizukuRemoteProcess
 
         val writeThread = Thread {
@@ -242,7 +255,7 @@ object SplitInstaller {
                 val createOutput = shizukuExec("pm", "install-create", "-S", "$totalSize")
                 DebugLog.d("SplitInstaller", "Shizuku create: $createOutput")
 
-                val sessionId = Regex("\\[(\\d+)]").find(createOutput)?.groupValues?.get(1)
+                val sessionId = SESSION_ID_REGEX.find(createOutput)?.groupValues?.get(1)
                     ?: return@withContext Result.failure(Exception("Shizuku: failed to create install session: $createOutput"))
 
                 apkFiles.forEachIndexed { index, apk ->
@@ -295,7 +308,7 @@ object SplitInstaller {
                         out
                     }
 
-                val sessionId = Regex("\\[(\\d+)]").find(createOutput)?.groupValues?.get(1)
+                val sessionId = SESSION_ID_REGEX.find(createOutput)?.groupValues?.get(1)
                     ?: return@withContext Result.failure(Exception("Root: failed to create install session"))
 
                 apkFiles.forEachIndexed { index, apk ->
