@@ -20,6 +20,7 @@ class App : Application() {
             val mode = when (theme) {
                 "light" -> AppCompatDelegate.MODE_NIGHT_NO
                 "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                "amoled" -> AppCompatDelegate.MODE_NIGHT_YES // AMOLED usa modo oscuro + estilo especial
                 else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             }
             AppCompatDelegate.setDefaultNightMode(mode)
