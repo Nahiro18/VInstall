@@ -238,9 +238,20 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_hash"
                 style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/check_hash" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_share"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                app:icon="@android:drawable/ic_menu_share"
+                android:text="@string/share_apk" />
 
         </LinearLayout>
 
@@ -295,7 +306,7 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:lineSpacingMultiplier="1.5" />
 
-        <!-- NUEVO: Sección de información de firma -->
+        <!-- Signature Info -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
