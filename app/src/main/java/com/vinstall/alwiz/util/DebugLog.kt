@@ -4,6 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.text.SimpleDateFormat
+import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
 
@@ -11,6 +12,10 @@ object DebugLog {
 
     private const val MAX_ENTRIES = 300
     private val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+
+    // --- OPTIMIZACIÓN: ArrayDeque es mucho más eficiente (O(1)) para agregar/quitar elementos ---
+    private val logQueue = ArrayDeque<String>(MAX_ENTRIES)
+    // --------------------------------------------------------------------------------------------
 
     private val _entries = MutableStateFlow<List<String>>(emptyList())
     val entries: StateFlow<List<String>> = _entries
@@ -38,15 +43,32 @@ object DebugLog {
     private fun append(line: String) {
         val ts = fmt.format(Date())
         val entry = "[$ts] $line"
-        val current = _entries.value.toMutableList()
-        current.add(entry)
-        if (current.size > MAX_ENTRIES) current.subList(0, current.size - MAX_ENTRIES).clear()
-        _entries.value = current
+
+        // --- CORRECCIÓN: Sincronización para evitar crashes por concurrencia ---
+        synchronized(logQueue) {
+            logQueue.addLast(entry)
+            
+            // Si excedemos el límite, eliminamos el más antiguo en O(1) tiempo
+            if (logQueue.size > MAX_ENTRIES) {
+                logQueue.removeFirst()
+            }
+            
+            // Emitimos una snapshot rápida a la UI (DebugWindow)
+            _entries.value = logQueue.toList()
+        }
+        // -----------------------------------------------------------------------
     }
 
     fun clear() {
-        _entries.value = emptyList()
+        synchronized(logQueue) {
+            logQueue.clear()
+            _entries.value = emptyList()
+        }
     }
 
-    fun getAll(): String = _entries.value.joinToString("\n")
+    fun getAll(): String {
+        return synchronized(logQueue) {
+            logQueue.joinToString("\n")
+        }
+    }
 }
