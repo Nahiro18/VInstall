@@ -2,9 +2,10 @@ package com.vinstall.alwiz.history
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.color.MaterialColors
-import com.vinstall.alwiz.databinding.ItemHistoryBinding
+import com.vinstall.alwiz.R
+import com.vinstall.alwiz.databinding.ItemHistoryEntryBinding
 import com.vinstall.alwiz.model.HistoryStatus
 import com.vinstall.alwiz.model.InstallHistoryEntry
 import java.text.SimpleDateFormat
@@ -12,57 +13,74 @@ import java.util.Date
 import java.util.Locale
 
 class InstallHistoryAdapter(
-    private val entries: MutableList<InstallHistoryEntry>,
     private val onItemClick: (InstallHistoryEntry) -> Unit,
     private val onDeleteClick: (InstallHistoryEntry, Int) -> Unit
 ) : RecyclerView.Adapter<InstallHistoryAdapter.ViewHolder>() {
 
-    private val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+    // --- MEJORA: El adaptador maneja su propia lista interna ---
+    private val entries = mutableListOf<InstallHistoryEntry>()
+    // ----------------------------------------------------------
 
-    inner class ViewHolder(val binding: ItemHistoryBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class ViewHolder(val binding: ItemHistoryEntryBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(entry: InstallHistoryEntry) {
+            val fmt = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+            
+            binding.textAppName.text = entry.appLabel.ifBlank { entry.packageName }
+            binding.textPackageName.text = entry.packageName
+            binding.textVersion.text = "v${entry.versionName}"
+            binding.textDate.text = fmt.format(Date(entry.timestamp))
+            binding.textFormat.text = entry.format
+            binding.textMode.text = entry.installMode.lowercase().replaceFirstChar { it.uppercase() }
+            
+            // Configurar color según estado
+            val (statusText, statusColor) = when (entry.status) {
+                HistoryStatus.SUCCESS -> "Success" to 0xFF4CAF50.toInt()
+                HistoryStatus.FAILED -> "Failed" to 0xFFF44336.toInt()
+                HistoryStatus.CANCELLED -> "Cancelled" to 0xFFFF9800.toInt()
+            }
+            binding.textStatus.text = statusText
+            binding.textStatus.setTextColor(statusColor)
+            
+            binding.root.setOnClickListener { onItemClick(entry) }
+            binding.btnDelete.setOnClickListener { 
+                onDeleteClick(entry, adapterPosition) 
+            }
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemHistoryBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemHistoryEntryBinding.inflate(
+            LayoutInflater.from(parent.context), parent, false
+        )
         return ViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val entry = entries[position]
-        val ctx = holder.binding.root.context
-
-        holder.binding.textAppLabel.text = entry.appLabel.ifEmpty { entry.packageName }
-        holder.binding.textPackageName.text = entry.packageName.ifEmpty { entry.format }
-        holder.binding.textDate.text = dateFormat.format(Date(entry.timestamp))
-
-        val versionText = buildString {
-            if (entry.versionName.isNotEmpty()) append("v${entry.versionName}  ·  ")
-            append(entry.format)
-        }
-        holder.binding.textVersionFormat.text = versionText
-
-        val (statusLabel, colorAttr) = when (entry.status) {
-            HistoryStatus.SUCCESS -> ctx.getString(com.vinstall.alwiz.R.string.history_status_success) to
-                androidx.appcompat.R.attr.colorPrimary
-            HistoryStatus.FAILED -> ctx.getString(com.vinstall.alwiz.R.string.history_status_failed) to
-                androidx.appcompat.R.attr.colorError
-            HistoryStatus.CANCELLED -> ctx.getString(com.vinstall.alwiz.R.string.history_status_cancelled) to
-                androidx.appcompat.R.attr.colorAccent
-        }
-
-        holder.binding.textStatus.text = statusLabel
-
-        val color = MaterialColors.getColor(holder.binding.root, colorAttr)
-        holder.binding.textStatus.setTextColor(color)
-        holder.binding.statusIndicator.setBackgroundColor(color)
-
-        holder.binding.root.setOnClickListener { onItemClick(entry) }
-        holder.binding.btnDelete.setOnClickListener { onDeleteClick(entry, holder.bindingAdapterPosition) }
+        holder.bind(entries[position])
     }
 
     override fun getItemCount(): Int = entries.size
 
+    // --- MEJORA: Métodos claros para actualizar datos ---
+    fun submitList(newEntries: List<InstallHistoryEntry>) {
+        entries.clear()
+        entries.addAll(newEntries)
+        notifyDataSetChanged()
+    }
+
     fun removeAt(position: Int) {
+        if (position < 0 || position >= entries.size) return
         entries.removeAt(position)
         notifyItemRemoved(position)
+        notifyItemRangeChanged(position, entries.size - position)
     }
+
+    fun clear() {
+        val size = entries.size
+        entries.clear()
+        notifyItemRangeRemoved(0, size)
+    }
+
+    fun isEmpty(): Boolean = entries.isEmpty()
+    // ----------------------------------------------------
 }
