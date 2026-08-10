@@ -120,7 +120,14 @@ class AppDetailActivity : AppCompatActivity() {
 
     private fun renderApp(app: AppInfo) {
         val fmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-        binding.imageIcon.setImageDrawable(app.icon)
+        
+        // --- CORRECCIÓN: Obtener icono del PackageManager ---
+        val iconDrawable = try {
+            packageManager.getApplicationIcon(app.packageName)
+        } catch (_: Exception) { null }
+        binding.imageIcon.setImageDrawable(iconDrawable ?: resources.getDrawable(android.R.drawable.sym_def_app_icon, theme))
+        // ---------------------------------------------------
+        
         binding.textAppName.text = app.label
         binding.textPackageName.text = app.packageName
         binding.textVersion.text = getString(R.string.version_detail, app.versionName, app.versionCode)
