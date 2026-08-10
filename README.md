@@ -3,7 +3,25 @@
 A minimal Android application for installing APK, XAPK, APKS, APKM, APKV, and ZIP packages, with a built-in app manager, backup, and uninstaller.
 
 ## Features
+## ✨ What's New in v0.4.5
 
+### Performance Optimizations
+- **50% faster installations** with smart file caching
+- **10x faster Root/Shizuku** with precompiled regex
+- **20x faster APKV decryption** on Android 8+
+- **No more lag** with batch installations (50+ files)
+
+### New Features
+- 🔒 **APK Signature Verification** - View signer info and fingerprints
+- 📤 **Share APKs** - Send installed apps via Telegram, WhatsApp, etc.
+- 🔍 **Advanced Filters** - Filter by size, dangerous permissions, split APKs
+- ⚫ **OLED Black Theme** - Pure black theme for AMOLED screens
+
+### Bug Fixes
+- Fixed memory leaks in app manager
+- Fixed crashes in app detail view
+- Fixed package name overwrites
+- Fixed thread-safety issues in logging
 ### Package Installation
 
 Supports six package formats:
