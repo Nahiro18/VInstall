@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.UniversalInstaller" parent="Theme.Material3.DayNight.NoActionBar">
+<resources>
+
+    <!-- Tema Dark (modo oscuro normal) -->
+    <style name="Theme.VInstall" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/on_primary</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
@@ -9,14 +11,24 @@
         <item name="colorOnSurface">@color/on_surface</item>
         <item name="colorSurfaceVariant">@color/surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
-    <style name="Theme.UniversalInstaller.Transparent" parent="Theme.UniversalInstaller">
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:backgroundDimEnabled">true</item>
+    <!-- Tema AMOLED (negro puro) -->
+    <style name="Theme.VInstall.AMOLED" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/oled_primary</item>
+        <item name="colorOnPrimary">@color/oled_on_primary</item>
+        <item name="colorPrimaryContainer">@color/oled_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/oled_on_primary_container</item>
+        <item name="colorSurface">@color/oled_surface</item>
+        <item name="colorOnSurface">@color/oled_on_surface</item>
+        <item name="colorSurfaceVariant">@color/oled_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/oled_on_surface_variant</item>
+        <item name="android:statusBarColor">@color/oled_surface</item>
+        <item name="android:navigationBarColor">@color/oled_surface</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
+
 </resources>
