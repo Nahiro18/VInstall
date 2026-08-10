@@ -19,7 +19,6 @@ class AppManagerViewModel(app: Application) : AndroidViewModel(app) {
 
     enum class SortOrder { NAME, SIZE, INSTALL_DATE, UPDATE_DATE }
     
-    // --- NUEVO: Filtros avanzados ---
     enum class SizeFilter(val label: String, val minBytes: Long) {
         ALL("All sizes", 0L),
         OVER_10MB("> 10 MB", 10L * 1024 * 1024),
@@ -27,27 +26,32 @@ class AppManagerViewModel(app: Application) : AndroidViewModel(app) {
         OVER_100MB("> 100 MB", 100L * 1024 * 1024),
         OVER_500MB("> 500 MB", 500L * 1024 * 1024)
     }
-    // -------------------------------
+
+    // Data class para agrupar todos los filtros en un solo objeto
+    data class FilterState(
+        val sizeFilter: SizeFilter = SizeFilter.ALL,
+        val onlyDangerousPerms: Boolean = false,
+        val onlySplitApps: Boolean = false
+    )
 
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _query = MutableStateFlow("")
     private val _includeSystem = MutableStateFlow(false)
     private val _sortOrder = MutableStateFlow(SortOrder.NAME)
+    private val _filters = MutableStateFlow(FilterState())
     private val _isLoading = MutableStateFlow(false)
     private var loadJob: Job? = null
 
-    // --- NUEVO: StateFlows para filtros avanzados ---
-    private val _sizeFilter = MutableStateFlow(SizeFilter.ALL)
-    private val _onlyDangerousPerms = MutableStateFlow(false)
-    private val _onlySplitApps = MutableStateFlow(false)
-    // -----------------------------------------------
-
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // Combine solo 5 flujos (el límite de Kotlin)
     val displayedApps: StateFlow<List<AppInfo>> = combine(
-        _allApps, _query, _includeSystem, _sortOrder,
-        _sizeFilter, _onlyDangerousPerms, _onlySplitApps
-    ) { all, query, includeSystem, sort, sizeFilter, dangerousPerms, splitApps ->
+        _allApps,
+        _query,
+        _includeSystem,
+        _sortOrder,
+        _filters
+    ) { all, query, includeSystem, sort, filters ->
         
         // Filtro 1: Sistema
         var result = if (includeSystem) all else all.filter { !it.isSystemApp }
@@ -55,29 +59,26 @@ class AppManagerViewModel(app: Application) : AndroidViewModel(app) {
         // Filtro 2: Búsqueda por texto
         if (query.isNotBlank()) {
             val q = query.lowercase()
-            result = result.filter { 
-                it.label.lowercase().contains(q) || 
-                it.packageName.lowercase().contains(q) 
+            result = result.filter { app ->
+                app.label.lowercase().contains(q) ||
+                app.packageName.lowercase().contains(q)
             }
         }
         
-        // --- NUEVO: Filtro 3: Tamaño mínimo ---
-        if (sizeFilter != SizeFilter.ALL) {
-            result = result.filter { it.sizeBytes >= sizeFilter.minBytes }
+        // Filtro 3: Tamaño mínimo
+        if (filters.sizeFilter != SizeFilter.ALL) {
+            result = result.filter { it.sizeBytes >= filters.sizeFilter.minBytes }
         }
-        // --------------------------------------
         
-        // --- NUEVO: Filtro 4: Solo permisos peligrosos ---
-        if (dangerousPerms) {
+        // Filtro 4: Solo permisos peligrosos
+        if (filters.onlyDangerousPerms) {
             result = result.filter { hasDangerousPermissions(it) }
         }
-        // -------------------------------------------------
         
-        // --- NUEVO: Filtro 5: Solo apps con splits ---
-        if (splitApps) {
+        // Filtro 5: Solo apps con splits
+        if (filters.onlySplitApps) {
             result = result.filter { it.isSplitApp }
         }
-        // ---------------------------------------------
         
         // Ordenamiento
         when (sort) {
@@ -110,14 +111,21 @@ class AppManagerViewModel(app: Application) : AndroidViewModel(app) {
     fun setSort(order: SortOrder) { _sortOrder.value = order }
     fun refresh() { loadApps() }
     
-    // --- NUEVO: Métodos para filtros avanzados ---
-    fun setSizeFilter(filter: SizeFilter) { _sizeFilter.value = filter }
-    fun setOnlyDangerousPerms(only: Boolean) { _onlyDangerousPerms.value = only }
-    fun setOnlySplitApps(only: Boolean) { _onlySplitApps.value = only }
-    fun getSizeFilter(): SizeFilter = _sizeFilter.value
-    // -------------------------------------------
+    // Métodos para filtros avanzados
+    fun setSizeFilter(filter: SizeFilter) {
+        _filters.value = _filters.value.copy(sizeFilter = filter)
+    }
+    
+    fun setOnlyDangerousPerms(only: Boolean) {
+        _filters.value = _filters.value.copy(onlyDangerousPerms = only)
+    }
+    
+    fun setOnlySplitApps(only: Boolean) {
+        _filters.value = _filters.value.copy(onlySplitApps = only)
+    }
+    
+    fun getSizeFilter(): SizeFilter = _filters.value.sizeFilter
 
-    // --- NUEVO: Verificar permisos peligrosos ---
     private fun hasDangerousPermissions(app: AppInfo): Boolean {
         val dangerousPerms = setOf(
             "android.permission.CAMERA",
@@ -141,5 +149,4 @@ class AppManagerViewModel(app: Application) : AndroidViewModel(app) {
         )
         return app.requestedPermissions.any { it in dangerousPerms }
     }
-    // -------------------------------------------
 }
