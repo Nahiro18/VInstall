@@ -1,7 +1,6 @@
 package com.vinstall.alwiz.settings
 
 import android.view.View
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
@@ -63,37 +62,15 @@ object DialogHelper {
 
                 if (appInstallInfo != null) {
                     val view = activity.layoutInflater.inflate(R.layout.dialog_app_info, null)
-                    val imageIcon = view.findViewById<ImageView>(R.id.image_app_icon)
-                    val textLabel = view.findViewById<TextView>(R.id.text_app_label)
-                    val textPackage = view.findViewById<TextView>(R.id.text_package_name)
-                    val textVersion = view.findViewById<TextView>(R.id.text_version_info)
-                    val textSdk = view.findViewById<TextView>(R.id.text_sdk_info)
+                    
+                    // --- OPTIMIZACIÓN: Usar función helper compartida ---
+                    ConfirmationBottomSheet.bindAppInfoToView(view, appInstallInfo, activity)
+                    // ---------------------------------------------------
+                    
+                    // Solo obtener las referencias para progreso
                     progressLayout = view.findViewById(R.id.layout_progress)
                     progressBar = view.findViewById(R.id.progress_install)
                     progressText = view.findViewById(R.id.text_progress_status)
-
-                    if (appInstallInfo.icon != null) {
-                        imageIcon.setImageBitmap(appInstallInfo.icon)
-                        imageIcon.isVisible = true
-                    } else {
-                        imageIcon.isVisible = false
-                    }
-
-                    textLabel.text = appInstallInfo.appLabel.ifBlank { appInstallInfo.packageName }
-                    textPackage.text = appInstallInfo.packageName
-
-                    val versionLine = ConfirmationBottomSheet.buildVersionLine(activity, appInstallInfo)
-                    textVersion.text = versionLine
-                    textVersion.isVisible = versionLine.isNotEmpty()
-
-                    if (appInstallInfo.minSdk > 0 || appInstallInfo.targetSdk > 0) {
-                        textSdk.text = activity.getString(
-                            R.string.sdk_detail, appInstallInfo.minSdk, appInstallInfo.targetSdk
-                        )
-                        textSdk.isVisible = true
-                    } else {
-                        textSdk.isVisible = false
-                    }
 
                     builder.setView(view)
                 } else if (message.isNotEmpty()) {
