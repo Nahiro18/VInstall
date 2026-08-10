@@ -2,10 +2,8 @@ package com.vinstall.alwiz.history
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
-import com.vinstall.alwiz.R
-import com.vinstall.alwiz.databinding.ItemHistoryEntryBinding
+import com.vinstall.alwiz.databinding.ItemHistoryBinding
 import com.vinstall.alwiz.model.HistoryStatus
 import com.vinstall.alwiz.model.InstallHistoryEntry
 import java.text.SimpleDateFormat
@@ -21,7 +19,7 @@ class InstallHistoryAdapter(
     private val entries = mutableListOf<InstallHistoryEntry>()
     // ----------------------------------------------------------
 
-    inner class ViewHolder(val binding: ItemHistoryEntryBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(val binding: ItemHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(entry: InstallHistoryEntry) {
             val fmt = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
             
@@ -49,7 +47,7 @@ class InstallHistoryAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemHistoryEntryBinding.inflate(
+        val binding = ItemHistoryBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
         )
         return ViewHolder(binding)
