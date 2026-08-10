@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -56,30 +58,9 @@ class ConfirmationBottomSheet : BottomSheetDialogFragment() {
         if (info != null) {
             binding.layoutAppInfo.isVisible = true
             binding.textMessage.isVisible = false
-
-            if (info.icon != null) {
-                binding.imageAppIcon.setImageBitmap(info.icon)
-                binding.imageAppIcon.isVisible = true
-            } else {
-                binding.imageAppIcon.isVisible = false
-            }
-
-            binding.textAppLabel.text = info.appLabel.ifBlank { info.packageName }
-            binding.textPackageName.text = info.packageName
-
-            val versionLine = buildVersionLine(info)
-            binding.textVersionInfo.text = versionLine
-            binding.textVersionInfo.isVisible = versionLine.isNotEmpty()
-
-            if (info.minSdk > 0 || info.targetSdk > 0) {
-                binding.textSdkInfo.text = requireContext().getString(
-                    R.string.sdk_detail, info.minSdk, info.targetSdk
-                )
-                binding.textSdkInfo.isVisible = true
-            } else {
-                binding.textSdkInfo.isVisible = false
-            }
-
+            // --- OPTIMIZACIÓN: Usar función helper compartida ---
+            bindAppInfoToView(binding.root, info, requireContext())
+            // ---------------------------------------------------
         } else {
             binding.layoutAppInfo.isVisible = false
             binding.textMessage.text = message
@@ -100,10 +81,6 @@ class ConfirmationBottomSheet : BottomSheetDialogFragment() {
         }
 
         binding.btnNegative.setOnClickListener { dismiss() }
-    }
-
-    private fun buildVersionLine(info: AppInstallInfo): String {
-        return buildVersionLine(requireContext(), info)
     }
 
     fun setInstalling(step: String, progress: Float) {
@@ -146,6 +123,37 @@ class ConfirmationBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
         private const val TAG = "ConfirmationBottomSheet"
+
+        // --- NUEVA FUNCIÓN HELPER: Lógica compartida para construir UI de info de app ---
+        fun bindAppInfoToView(view: View, info: AppInstallInfo, context: android.content.Context) {
+            val imageIcon = view.findViewById<ImageView>(R.id.image_app_icon)
+            val textLabel = view.findViewById<TextView>(R.id.text_app_label)
+            val textPackage = view.findViewById<TextView>(R.id.text_package_name)
+            val textVersion = view.findViewById<TextView>(R.id.text_version_info)
+            val textSdk = view.findViewById<TextView>(R.id.text_sdk_info)
+
+            if (info.icon != null) {
+                imageIcon.setImageBitmap(info.icon)
+                imageIcon.isVisible = true
+            } else {
+                imageIcon.isVisible = false
+            }
+
+            textLabel.text = info.appLabel.ifBlank { info.packageName }
+            textPackage.text = info.packageName
+
+            val versionLine = buildVersionLine(context, info)
+            textVersion.text = versionLine
+            textVersion.isVisible = versionLine.isNotEmpty()
+
+            if (info.minSdk > 0 || info.targetSdk > 0) {
+                textSdk.text = context.getString(R.string.sdk_detail, info.minSdk, info.targetSdk)
+                textSdk.isVisible = true
+            } else {
+                textSdk.isVisible = false
+            }
+        }
+        // ------------------------------------------------------------------------------
 
         fun buildVersionLine(context: android.content.Context, info: AppInstallInfo): String {
             if (info.versionName.isEmpty()) return ""
