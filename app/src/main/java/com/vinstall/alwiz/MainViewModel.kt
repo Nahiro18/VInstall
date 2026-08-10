@@ -412,78 +412,38 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         installStartTime = System.currentTimeMillis()
         _state.value = InstallState.Analyzing
 
+        // --- MODIFICACIÓN DE LIMPIEZA ---
+        // Extraemos los callbacks a variables locales para no repetir el mismo bloque 6 veces.
+        val stepCallback: (String) -> Unit = { step ->
+            _state.value = InstallState.Installing(step)
+            NotificationHelper.postInstalling(context, fileState.appLabel, step)
+        }
+
+        val progressCallback: (Float) -> Unit = { progress ->
+            val step = (_state.value as? InstallState.Installing)?.step ?: ""
+            _state.value = InstallState.Installing(step, progress)
+            NotificationHelper.updateProgress(context, fileState.appLabel, progress)
+        }
+        // --------------------------------
+
         val result = when (fileState.format) {
-            PackageFormat.APK -> ApkInstaller.install(context, fileState.uri,
-                onStep = { step ->
-                    _state.value = InstallState.Installing(step)
-                    NotificationHelper.postInstalling(context, fileState.appLabel, step)
-                },
-                onProgress = { progress ->
-                    val step = (_state.value as? InstallState.Installing)?.step ?: ""
-                    _state.value = InstallState.Installing(step, progress)
-                    NotificationHelper.updateProgress(context, fileState.appLabel, progress)
-                }
+            PackageFormat.APK -> ApkInstaller.install(
+                context, fileState.uri, stepCallback, progressCallback
             )
-            PackageFormat.XAPK -> XapkInstaller.install(context, fileState.uri,
-                onStep = { step ->
-                    _state.value = InstallState.Installing(step)
-                    NotificationHelper.postInstalling(context, fileState.appLabel, step)
-                },
-                selectedSplits = splits,
-                onProgress = { progress ->
-                    val step = (_state.value as? InstallState.Installing)?.step ?: ""
-                    _state.value = InstallState.Installing(step, progress)
-                    NotificationHelper.updateProgress(context, fileState.appLabel, progress)
-                }
+            PackageFormat.XAPK -> XapkInstaller.install(
+                context, fileState.uri, stepCallback, splits, progressCallback
             )
-            PackageFormat.APKS -> ApksInstaller.install(context, fileState.uri,
-                onStep = { step ->
-                    _state.value = InstallState.Installing(step)
-                    NotificationHelper.postInstalling(context, fileState.appLabel, step)
-                },
-                selectedSplits = splits,
-                onProgress = { progress ->
-                    val step = (_state.value as? InstallState.Installing)?.step ?: ""
-                    _state.value = InstallState.Installing(step, progress)
-                    NotificationHelper.updateProgress(context, fileState.appLabel, progress)
-                }
+            PackageFormat.APKS -> ApksInstaller.install(
+                context, fileState.uri, stepCallback, splits, progressCallback
             )
-            PackageFormat.APKM -> ApkmInstaller.install(context, fileState.uri,
-                onStep = { step ->
-                    _state.value = InstallState.Installing(step)
-                    NotificationHelper.postInstalling(context, fileState.appLabel, step)
-                },
-                selectedSplits = splits,
-                onProgress = { progress ->
-                    val step = (_state.value as? InstallState.Installing)?.step ?: ""
-                    _state.value = InstallState.Installing(step, progress)
-                    NotificationHelper.updateProgress(context, fileState.appLabel, progress)
-                }
+            PackageFormat.APKM -> ApkmInstaller.install(
+                context, fileState.uri, stepCallback, splits, progressCallback
             )
-            PackageFormat.ZIP -> ZipApkInstaller.install(context, fileState.uri,
-                onStep = { step ->
-                    _state.value = InstallState.Installing(step)
-                    NotificationHelper.postInstalling(context, fileState.appLabel, step)
-                },
-                selectedSplits = splits,
-                onProgress = { progress ->
-                    val step = (_state.value as? InstallState.Installing)?.step ?: ""
-                    _state.value = InstallState.Installing(step, progress)
-                    NotificationHelper.updateProgress(context, fileState.appLabel, progress)
-                }
+            PackageFormat.ZIP -> ZipApkInstaller.install(
+                context, fileState.uri, stepCallback, splits, progressCallback
             )
             PackageFormat.APKV -> ApkvInstaller.install(
-                context, fileState.uri, fileState.apkvPassword,
-                onStep = { step ->
-                    _state.value = InstallState.Installing(step)
-                    NotificationHelper.postInstalling(context, fileState.appLabel, step)
-                },
-                selectedSplits = splits,
-                onProgress = { progress ->
-                    val step = (_state.value as? InstallState.Installing)?.step ?: ""
-                    _state.value = InstallState.Installing(step, progress)
-                    NotificationHelper.updateProgress(context, fileState.appLabel, progress)
-                }
+                context, fileState.uri, fileState.apkvPassword, stepCallback, splits, progressCallback
             )
             PackageFormat.UNKNOWN -> {
                 _state.value = InstallState.Error("File format not supported")
