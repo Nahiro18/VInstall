@@ -4,10 +4,10 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.vinstall.alwiz.installer.ApkInstaller
 import com.vinstall.alwiz.installer.ApkmInstaller
 import com.vinstall.alwiz.installer.ApksInstaller
 import com.vinstall.alwiz.installer.ApkvInstaller
+import com.vinstall.alwiz.installer.SplitInstaller
 import com.vinstall.alwiz.installer.XapkInstaller
 import com.vinstall.alwiz.installer.ZipApkInstaller
 import com.vinstall.alwiz.model.InstallState
@@ -412,8 +412,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         installStartTime = System.currentTimeMillis()
         _state.value = InstallState.Analyzing
 
-        // --- MODIFICACIÓN DE LIMPIEZA ---
-        // Extraemos los callbacks a variables locales para no repetir el mismo bloque 6 veces.
+        // Callbacks centralizados para todos los instaladores
         val stepCallback: (String) -> Unit = { step ->
             _state.value = InstallState.Installing(step)
             NotificationHelper.postInstalling(context, fileState.appLabel, step)
@@ -424,12 +423,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _state.value = InstallState.Installing(step, progress)
             NotificationHelper.updateProgress(context, fileState.appLabel, progress)
         }
-        // --------------------------------
 
+        // --- CAMBIO: Usar SplitInstaller directamente para APKs simples ---
         val result = when (fileState.format) {
-            PackageFormat.APK -> ApkInstaller.install(
-                context, fileState.uri, stepCallback, progressCallback
-            )
+            PackageFormat.APK -> {
+                DebugLog.d("MainViewModel", "Installing APK directly via SplitInstaller")
+                stepCallback("Copying APK...")
+                val cachedApk = FileUtil.extractToCache(context, fileState.uri, "install.apk")
+                stepCallback("Installing...")
+                SplitInstaller.installSplits(context, listOf(cachedApk), onProgress = progressCallback)
+            }
             PackageFormat.XAPK -> XapkInstaller.install(
                 context, fileState.uri, stepCallback, splits, progressCallback
             )
@@ -450,6 +453,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 return
             }
         }
+        // -------------------------------------------------------------------
 
         if (result.isFailure) {
             val msg = result.exceptionOrNull()?.message ?: "Unknown error"
