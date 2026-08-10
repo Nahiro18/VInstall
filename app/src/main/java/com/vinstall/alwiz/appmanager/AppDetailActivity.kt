@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -34,6 +35,7 @@ import com.vinstall.alwiz.settings.InstallMode
 import com.vinstall.alwiz.util.DebugLog
 import com.vinstall.alwiz.util.FileUtil
 import com.vinstall.alwiz.util.HashUtil
+import com.vinstall.alwiz.util.SignatureUtil
 import com.vinstall.alwiz.installer.UninstallHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -121,12 +123,11 @@ class AppDetailActivity : AppCompatActivity() {
     private fun renderApp(app: AppInfo) {
         val fmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
         
-        // --- CORRECCIÓN: Obtener icono del PackageManager ---
+        // Obtener icono del PackageManager
         val iconDrawable = try {
             packageManager.getApplicationIcon(app.packageName)
         } catch (_: Exception) { null }
         binding.imageIcon.setImageDrawable(iconDrawable ?: resources.getDrawable(android.R.drawable.sym_def_app_icon, theme))
-        // ---------------------------------------------------
         
         binding.textAppName.text = app.label
         binding.textPackageName.text = app.packageName
@@ -150,6 +151,10 @@ class AppDetailActivity : AppCompatActivity() {
             app.requestedPermissions.joinToString("\n") { "• $it" }
         }
         binding.textPermissions.text = permText
+
+        // --- NUEVO: Cargar información de firma ---
+        loadSignatureInfo(app)
+        // ------------------------------------------
 
         binding.btnOpenApp.setOnClickListener {
             val launchIntent = packageManager.getLaunchIntentForPackage(app.packageName)
@@ -181,6 +186,39 @@ class AppDetailActivity : AppCompatActivity() {
             computeAndShowHash(app)
         }
     }
+
+    // --- NUEVO: Función para cargar y mostrar la información de firma ---
+    private fun loadSignatureInfo(app: AppInfo) {
+        lifecycleScope.launch {
+            val signatureInfo = withContext(Dispatchers.IO) {
+                SignatureUtil.getApkSignatureInfo(this@AppDetailActivity, app.sourceDir)
+            }
+            
+            if (signatureInfo != null) {
+                val statusText = if (signatureInfo.isValid) "✅ Valid" else "❌ Invalid"
+                val signerText = signatureInfo.signerName ?: "Unknown"
+                
+                val message = buildString {
+                    appendLine("Status: $statusText")
+                    appendLine("Signer: $signerText")
+                    appendLine()
+                    appendLine("Valid from: ${signatureInfo.validFrom ?: "N/A"}")
+                    appendLine("Valid until: ${signatureInfo.validUntil ?: "N/A"}")
+                    appendLine()
+                    appendLine("MD5: ${signatureInfo.fingerprintMD5}")
+                    appendLine("SHA-1: ${signatureInfo.fingerprintSHA1}")
+                    appendLine("SHA-256: ${signatureInfo.fingerprintSHA256}")
+                }
+                
+                binding.textSignatureInfo.text = message
+                binding.textSignatureInfo.visibility = View.VISIBLE
+            } else {
+                binding.textSignatureInfo.text = getString(R.string.signature_not_available)
+                binding.textSignatureInfo.visibility = View.VISIBLE
+            }
+        }
+    }
+    // -------------------------------------------------------------------
 
     private fun showExportDialog(app: AppInfo) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_export, null)
