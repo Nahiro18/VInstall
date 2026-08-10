@@ -66,7 +66,12 @@ object ApkvExporter {
             }
 
             onStep("Exporting icon...")
-            val iconBytes = appInfo.icon?.let { drawableToWebP(it) }
+            // --- CORRECCIÓN: Obtener icono del PackageManager ---
+            val iconDrawable = try {
+                context.packageManager.getApplicationIcon(appInfo.packageName)
+            } catch (_: Exception) { null }
+            val iconBytes = iconDrawable?.let { drawableToWebP(it) }
+            // ---------------------------------------------------
             val hasIcon = iconBytes != null
 
             val splitNames = apkFiles.map { it.name }
