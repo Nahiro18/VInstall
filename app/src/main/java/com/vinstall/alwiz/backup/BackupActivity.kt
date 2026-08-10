@@ -24,7 +24,10 @@ class BackupActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBackupBinding
     private val viewModel: BackupViewModel by viewModels()
-    private val adapter = AppListAdapter { app -> showExportDialog(app) }
+    
+    // --- CORRECCIÓN: El adaptador ahora se declara como lateinit ---
+    private lateinit var adapter: AppListAdapter
+    // --------------------------------------------------------------
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +36,10 @@ class BackupActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        // --- CORRECCIÓN: El adaptador se inicializa AQUÍ, con la Activity ya lista ---
+        adapter = AppListAdapter { app -> showExportDialog(app) }
+        // -----------------------------------------------------------------------------
 
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
