@@ -6,6 +6,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.ViewCompat
@@ -68,6 +69,20 @@ class AppManagerActivity : AppCompatActivity() {
             viewModel.setSort(sort)
         }
 
+        // --- NUEVO: Listeners para filtros avanzados ---
+        binding.chipFilterSize.setOnClickListener {
+            showSizeFilterDialog()
+        }
+
+        binding.chipFilterPerms.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setOnlyDangerousPerms(isChecked)
+        }
+
+        binding.chipFilterSplits.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setOnlySplitApps(isChecked)
+        }
+        // ----------------------------------------------
+
         lifecycleScope.launch {
             viewModel.displayedApps.collect { list ->
                 adapter.submitList(list)
@@ -83,6 +98,25 @@ class AppManagerActivity : AppCompatActivity() {
 
         viewModel.loadApps()
     }
+
+    // --- NUEVO: Diálogo para seleccionar filtro de tamaño ---
+    private fun showSizeFilterDialog() {
+        val filters = AppManagerViewModel.SizeFilter.values()
+        val labels = filters.map { it.label }.toTypedArray()
+        val currentIndex = filters.indexOf(viewModel.getSizeFilter())
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.choose_size_filter))
+            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
+                viewModel.setSizeFilter(filters[which])
+                // Actualizar el texto del chip para mostrar el filtro activo
+                binding.chipFilterSize.text = filters[which].label
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+    // -------------------------------------------------------
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.app_manager_menu, menu)
