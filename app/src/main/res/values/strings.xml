@@ -183,6 +183,10 @@
     <string name="signature_info">Signature Info</string>
     <string name="signature_not_available">Signature information not available</string>
 
+    <!-- Share APK -->
+    <string name="share_apk">Share APK</string>
+    <string name="share_apk_error">Could not share APK</string>
+
     <plurals name="app_count">
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
