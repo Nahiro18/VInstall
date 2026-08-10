@@ -444,11 +444,14 @@ object MetadataReader {
         if (!extracted) return tocMeta ?: AppMeta()
 
         val apkMeta = readApkFile(context, tmpFile.absolutePath)
+        
+        // --- MODIFICACIÓN DE CORRECCIÓN ---
+        // Priorizamos el packageName oficial que extrajo Android (apkMeta).
+        // Solo usamos el extraído manualmente de toc.pb si apkMeta está vacío.
         return apkMeta.copy(
-            packageName = tocMeta?.packageName
-                ?.takeIf { it.isNotEmpty() }
-                ?: apkMeta.packageName
+            packageName = apkMeta.packageName.ifEmpty { tocMeta?.packageName ?: "" }
         )
+        // -----------------------------------
     }
 
     private fun readFromTocPb(context: Context, uri: Uri): AppMeta? {
