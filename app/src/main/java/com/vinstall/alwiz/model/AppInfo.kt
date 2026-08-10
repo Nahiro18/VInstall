@@ -1,7 +1,5 @@
 package com.vinstall.alwiz.model
 
-import android.graphics.drawable.Drawable
-
 data class AppInfo(
     val packageName: String,
     val label: String,
@@ -18,7 +16,6 @@ data class AppInfo(
     val isSystemApp: Boolean,
     val isDebuggable: Boolean,
     val isSplitApp: Boolean,
-    val icon: Drawable?,
     val requestedPermissions: List<String>
 ) {
     override fun equals(other: Any?): Boolean {
