@@ -8,6 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.vinstall.alwiz.installer.ApkmInstaller
 import com.vinstall.alwiz.installer.ApkvInstaller
 import com.vinstall.alwiz.installer.ApksInstaller
+import com.vinstall.alwiz.installer.SplitInstaller
+import com.vinstall.alwiz.installer.XapkInstaller
+import com.vinstall.alwiz.installer.ZipApkInstaller
 import com.vinstall.alwiz.model.InstallState
 import com.vinstall.alwiz.model.PackageFormat
 import com.vinstall.alwiz.settings.AppSettings
@@ -100,14 +103,19 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             InstallHelper.reset()
             _state.value = InstallState.Analyzing
+            
+            // --- CAMBIO: Usar SplitInstaller directamente para APKs simples ---
             val result = when (fileState.format) {
-                PackageFormat.APK -> ApkInstaller.install(context, uri,
-                    onStep = { step -> _state.value = InstallState.Installing(step) },
-                    onProgress = { progress ->
+                PackageFormat.APK -> {
+                    DebugLog.d("InstallIntentVM", "Installing APK directly via SplitInstaller")
+                    _state.value = InstallState.Installing("Copying APK...")
+                    val cachedApk = FileUtil.extractToCache(context, uri, "install.apk")
+                    _state.value = InstallState.Installing("Installing...")
+                    SplitInstaller.installSplits(context, listOf(cachedApk), onProgress = { progress ->
                         val step = (_state.value as? InstallState.Installing)?.step ?: ""
                         _state.value = InstallState.Installing(step, progress)
-                    }
-                )
+                    })
+                }
                 PackageFormat.XAPK -> XapkInstaller.install(context, uri,
                     onStep = { step -> _state.value = InstallState.Installing(step) },
                     selectedSplits = null,
@@ -152,6 +160,7 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 }
             }
+            // -------------------------------------------------------------------
 
             if (result.isFailure) {
                 _state.value = InstallState.Error(result.exceptionOrNull()?.message ?: "Install failed")
