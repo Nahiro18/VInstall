@@ -82,8 +82,11 @@
                         android:layout_marginStart="4dp"
                         android:text="@string/tag_debug"
                         android:visibility="gone" />
+
                 </LinearLayout>
+
             </LinearLayout>
+
         </LinearLayout>
 
         <com.google.android.material.divider.MaterialDivider
@@ -151,6 +154,7 @@
                 android:layout_marginTop="4dp"
                 android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant" />
+
         </LinearLayout>
 
         <LinearLayout
@@ -176,6 +180,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:text="@string/app_info" />
+
         </LinearLayout>
 
         <LinearLayout
@@ -201,6 +206,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:text="@string/uninstall" />
+
         </LinearLayout>
 
         <ProgressBar
@@ -289,5 +295,29 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:lineSpacingMultiplier="1.5" />
 
+        <!-- NUEVO: Sección de información de firma -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/signature_info"
+            android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+            android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+            android:id="@+id/text_signature_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginBottom="24dp"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:fontFamily="monospace"
+            android:lineSpacingMultiplier="1.5"
+            android:visibility="gone" />
+
     </LinearLayout>
+
 </androidx.core.widget.NestedScrollView>
