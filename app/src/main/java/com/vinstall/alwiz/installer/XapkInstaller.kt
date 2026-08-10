@@ -10,6 +10,7 @@ import com.vinstall.alwiz.util.DebugLog
 import com.vinstall.alwiz.util.FileUtil
 import java.io.File
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 
 object XapkInstaller {
 
@@ -75,27 +76,28 @@ object XapkInstaller {
         }
     }
 
+    // --- MODIFICACIÓN: Usar ZipInputStream en lugar de copiar el archivo entero a disco ---
     fun listSplits(context: Context, uri: Uri): List<String> {
         val splits = mutableListOf<String>()
-        val tempFile = File(context.cacheDir, "xapk_list_${System.nanoTime()}.xapk")
+        val stream = FileUtil.openStream(context, uri) ?: return splits
+        
         try {
-            copyUriToFile(context, uri, tempFile)
-            ZipFile(tempFile).use { zip ->
-                val entries = zip.entries()
-                while (entries.hasMoreElements()) {
-                    val entry = entries.nextElement()
+            ZipInputStream(stream.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
                     if (!entry.isDirectory && entry.name.endsWith(".apk")) {
                         splits.add(File(entry.name).name)
                     }
+                    zip.closeEntry()
+                    entry = zip.nextEntry
                 }
             }
         } catch (e: Exception) {
             DebugLog.e("XapkInstaller", "listSplits error: ${e.message}")
-        } finally {
-            tempFile.delete()
         }
         return splits
     }
+    // ---------------------------------------------------------------------------------------
 
     private fun extractWithZipFile(
         context: Context,
