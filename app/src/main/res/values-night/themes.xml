@@ -14,6 +14,9 @@
         <item name="android:statusBarColor">@color/surface</item>
         <item name="android:navigationBarColor">@color/surface</item>
         <item name="android:windowLightStatusBar">false</item>
+        <!-- Transiciones suaves entre actividades -->
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
     </style>
 
     <!-- Tema transparente (hereda del base) -->
@@ -38,6 +41,8 @@
         <item name="android:statusBarColor">@color/oled_surface</item>
         <item name="android:navigationBarColor">@color/oled_surface</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
     </style>
 
 </resources>
