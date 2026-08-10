@@ -123,7 +123,6 @@ class AppDetailActivity : AppCompatActivity() {
     private fun renderApp(app: AppInfo) {
         val fmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
         
-        // Obtener icono del PackageManager
         val iconDrawable = try {
             packageManager.getApplicationIcon(app.packageName)
         } catch (_: Exception) { null }
@@ -152,9 +151,7 @@ class AppDetailActivity : AppCompatActivity() {
         }
         binding.textPermissions.text = permText
 
-        // --- NUEVO: Cargar información de firma ---
         loadSignatureInfo(app)
-        // ------------------------------------------
 
         binding.btnOpenApp.setOnClickListener {
             val launchIntent = packageManager.getLaunchIntentForPackage(app.packageName)
@@ -185,9 +182,47 @@ class AppDetailActivity : AppCompatActivity() {
         binding.btnHash.setOnClickListener {
             computeAndShowHash(app)
         }
+
+        binding.btnShare.setOnClickListener {
+            shareApk(app)
+        }
     }
 
-    // --- NUEVO: Función para cargar y mostrar la información de firma ---
+    private fun shareApk(app: AppInfo) {
+        lifecycleScope.launch {
+            try {
+                binding.btnShare.isEnabled = false
+                
+                val sourceFile = File(app.sourceDir)
+                val sharedDir = File(cacheDir, "shared_apks").apply { mkdirs() }
+                val targetFile = File(sharedDir, "${app.packageName}.apk")
+                
+                withContext(Dispatchers.IO) {
+                    sourceFile.copyTo(targetFile, overwrite = true)
+                }
+
+                val authority = "${packageName}.provider"
+                val apkUri = FileProvider.getUriForFile(this@AppDetailActivity, authority, targetFile)
+
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/vnd.android.package-archive"
+                    putExtra(Intent.EXTRA_STREAM, apkUri)
+                    putExtra(Intent.EXTRA_SUBJECT, app.label)
+                    putExtra(Intent.EXTRA_TEXT, "APK shared from VInstall")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                
+                startActivity(Intent.createChooser(shareIntent, getString(R.string.share_apk)))
+                
+            } catch (e: Exception) {
+                DebugLog.e("AppDetail", "Share APK failed: ${e.message}")
+                Toast.makeText(this@AppDetailActivity, getString(R.string.share_apk_error), Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.btnShare.isEnabled = true
+            }
+        }
+    }
+
     private fun loadSignatureInfo(app: AppInfo) {
         lifecycleScope.launch {
             val signatureInfo = withContext(Dispatchers.IO) {
@@ -218,7 +253,6 @@ class AppDetailActivity : AppCompatActivity() {
             }
         }
     }
-    // -------------------------------------------------------------------
 
     private fun showExportDialog(app: AppInfo) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_export, null)
