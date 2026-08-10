@@ -1,9 +1,12 @@
 package com.vinstall.alwiz.apkv
 
+import android.os.Build
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.Mac
+import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 object ApkvCrypto {
@@ -50,8 +53,24 @@ object ApkvCrypto {
         }
     }
 
-    fun deriveKeyBytes(password: String, salt: ByteArray): ByteArray =
-        pbkdf2(password.toByteArray(Charsets.UTF_8), salt, KDF_ITERATIONS, KEY_BIT_LENGTH / 8)
+    // --- MODIFICACIÓN: Usar PBKDF2 nativo en Android 8+ (mucho más rápido) ---
+    fun deriveKeyBytes(password: String, salt: ByteArray): ByteArray {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Android 8.0+ tiene soporte nativo para PBKDF2WithHmacSHA256
+            try {
+                val spec = PBEKeySpec(password.toCharArray(), salt, KDF_ITERATIONS, KEY_BIT_LENGTH)
+                val factory = SecretKeyFactory.getInstance(KDF_ALGORITHM)
+                factory.generateSecret(spec).encoded
+            } catch (_: Exception) {
+                // Si falla por alguna razón, usar el fallback manual
+                pbkdf2(password.toByteArray(Charsets.UTF_8), salt, KDF_ITERATIONS, KEY_BIT_LENGTH / 8)
+            }
+        } else {
+            // Android 7.x y anteriores: usar implementación manual
+            pbkdf2(password.toByteArray(Charsets.UTF_8), salt, KDF_ITERATIONS, KEY_BIT_LENGTH / 8)
+        }
+    }
+    // -----------------------------------------------------------------------
 
     private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec =
         SecretKeySpec(deriveKeyBytes(password, salt), KEY_ALGORITHM)
