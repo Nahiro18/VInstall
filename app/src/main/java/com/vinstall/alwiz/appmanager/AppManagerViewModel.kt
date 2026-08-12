@@ -52,35 +52,17 @@ class AppManagerViewModel(app: Application) : AndroidViewModel(app) {
         _sortOrder,
         _filters
     ) { all, query, includeSystem, sort, filters ->
-        
-        // Filtro 1: Sistema
-        var result = if (includeSystem) all else all.filter { !it.isSystemApp }
-        
-        // Filtro 2: Búsqueda por texto
-        if (query.isNotBlank()) {
-            val q = query.lowercase()
-            result = result.filter { app ->
-                app.label.lowercase().contains(q) ||
-                app.packageName.lowercase().contains(q)
-            }
+        val q = query.trim()
+        val result = all.filter { app ->
+            val matchSystem = includeSystem || !app.isSystemApp
+            val matchQuery = q.isEmpty() || app.label.contains(q, ignoreCase = true) || app.packageName.contains(q, ignoreCase = true)
+            val matchSize = filters.sizeFilter == SizeFilter.ALL || app.sizeBytes >= filters.sizeFilter.minBytes
+            val matchDangerous = !filters.onlyDangerousPerms || hasDangerousPermissions(app)
+            val matchSplit = !filters.onlySplitApps || app.isSplitApp
+            
+            matchSystem && matchQuery && matchSize && matchDangerous && matchSplit
         }
         
-        // Filtro 3: Tamaño mínimo
-        if (filters.sizeFilter != SizeFilter.ALL) {
-            result = result.filter { it.sizeBytes >= filters.sizeFilter.minBytes }
-        }
-        
-        // Filtro 4: Solo permisos peligrosos
-        if (filters.onlyDangerousPerms) {
-            result = result.filter { hasDangerousPermissions(it) }
-        }
-        
-        // Filtro 5: Solo apps con splits
-        if (filters.onlySplitApps) {
-            result = result.filter { it.isSplitApp }
-        }
-        
-        // Ordenamiento
         when (sort) {
             SortOrder.NAME -> result.sortedBy { it.label.lowercase() }
             SortOrder.SIZE -> result.sortedByDescending { it.sizeBytes }

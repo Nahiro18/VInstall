@@ -248,91 +248,88 @@ object MetadataReader {
     }
 
     fun readFromXapk(context: Context, uri: Uri): AppMeta {
-        val tempFile = File(context.cacheDir, "meta_xapk_${System.nanoTime()}.xapk")
-        return try {
-            FileUtil.openStream(context, uri)?.use { input ->
-                tempFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { output ->
-                    input.copyTo(output, FileUtil.BUFFER_SIZE)
+        val stream = FileUtil.openStream(context, uri) ?: return AppMeta()
+        var manifest: XapkManifest? = null
+        var iconBytes: ByteArray? = null
+        var iconNameFromManifest: String? = null
+        val candidates = mutableMapOf<String, ByteArray>()
+        var baseApkFile: File? = null
+        
+        try {
+            ZipInputStream(stream.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    val name = entry.name
+                    val normalized = name.replace('\\', '/').trimStart('/')
+                    val lower = normalized.lowercase()
+                    
+                    when {
+                        !entry.isDirectory && isManifestEntry(name) -> {
+                            val text = zip.readBytes().toString(Charsets.UTF_8)
+                                .trimStart('\uFEFF')
+                                .trim()
+                            manifest = gson.fromJson(text, XapkManifest::class.java)
+                            manifest?.icon?.replace('\\', '/')?.trimStart('/')?.takeIf { it.isNotEmpty() }?.let {
+                                iconNameFromManifest = it
+                            }
+                        }
+                        !entry.isDirectory && (lower == "icon.png" || lower == "icon.webp" 
+                                || lower.endsWith("/icon.png") || lower.endsWith("/icon.webp")) -> {
+                            candidates[normalized] = zip.readBytes()
+                        }
+                        !entry.isDirectory && name.endsWith(".apk") && baseApkFile == null -> {
+                            val isBase = normalized.equals("base.apk", ignoreCase = true) || !normalized.contains("config.")
+                            if (isBase) {
+                                val tempApk = File(context.cacheDir, "meta_xapk_base_${System.nanoTime()}.apk")
+                                tempApk.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
+                                    zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                                }
+                                baseApkFile = tempApk
+                            }
+                        }
+                    }
+                    zip.closeEntry()
+                    entry = zip.nextEntry
                 }
             }
-
-            var manifest: XapkManifest? = null
-            var iconBitmap: Bitmap? = null
-
-            ZipFile(tempFile).use { zip ->
-                val manifestEntry = zip.entries().asSequence().firstOrNull { entry ->
-                    val n = entry.name.replace('\\', '/').trimStart('/')
-                    !entry.isDirectory && (
-                        n.equals("manifest.json", ignoreCase = true)
-                        || n.endsWith("/manifest.json", ignoreCase = true)
-                    )
-                }
-
-                if (manifestEntry != null) {
-                    val text = zip.getInputStream(manifestEntry).readBytes()
-                        .toString(Charsets.UTF_8)
-                        .trimStart('\uFEFF')
-                        .trim()
-                    DebugLog.d("MetadataReader", "XAPK manifest: ${text.take(256)}")
-                    manifest = gson.fromJson(text, XapkManifest::class.java)
-                }
-
-                val iconFileName = manifest?.icon
-                    ?.replace('\\', '/')
-                    ?.trimStart('/')
-                    ?.takeIf { it.isNotEmpty() }
-                    ?: "icon.png"
-
-                val iconEntry = zip.getEntry(iconFileName)
-                    ?: zip.entries().asSequence().firstOrNull { entry ->
-                        val n = entry.name.replace('\\', '/').trimStart('/').lowercase()
-                        !entry.isDirectory && (n == "icon.png" || n == "icon.webp"
-                            || n.endsWith("/icon.png") || n.endsWith("/icon.webp"))
-                    }
-
-                if (iconEntry != null) {
-                    val bytes = zip.getInputStream(iconEntry).readBytes()
-                    iconBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    DebugLog.d("MetadataReader", "XAPK icon decoded from '${iconEntry.name}': ${iconBitmap != null}")
-                }
-
+            
+            if (iconNameFromManifest != null) {
+                iconBytes = candidates[iconNameFromManifest]
+            }
+            if (iconBytes == null) {
+                iconBytes = candidates.values.firstOrNull()
+            }
+            
+            var iconBitmap = iconBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+            
+            var packageName = manifest?.packageName ?: ""
+            var versionName = manifest?.versionName ?: ""
+            var appLabel = manifest?.name ?: ""
+            
+            if (baseApkFile != null && baseApkFile.exists()) {
+                val apkMeta = readApkFile(context, baseApkFile.absolutePath)
+                if (packageName.isEmpty()) packageName = apkMeta.packageName
+                if (versionName.isEmpty()) versionName = apkMeta.versionName
+                if (appLabel.isEmpty()) appLabel = apkMeta.appLabel
                 if (iconBitmap == null) {
-                    DebugLog.d("MetadataReader", "XAPK icon.png null — trying base APK fallback")
-                    val baseApkEntry = manifest?.splitApks
-                        ?.firstOrNull { it.id == "base" }
-                        ?.file
-                        ?.let { zip.getEntry(it) }
-                        ?: zip.entries().asSequence().firstOrNull { entry ->
-                            val n = entry.name.lowercase()
-                            !entry.isDirectory && n.endsWith(".apk") && !n.contains("config.")
-                        }
-
-                    if (baseApkEntry != null) {
-                        val fallbackApk = File(context.cacheDir, "meta_xapk_base_${System.nanoTime()}.apk")
-                        zip.getInputStream(baseApkEntry).use { input ->
-                            fallbackApk.outputStream().buffered(FileUtil.BUFFER_SIZE)
-                                .use { out -> input.copyTo(out, FileUtil.BUFFER_SIZE) }
-                        }
-                        iconBitmap = readApkFile(context, fallbackApk.absolutePath).appIcon
-                            ?: extractIconFromApkZip(fallbackApk.absolutePath)
-                        DebugLog.d("MetadataReader", "XAPK base APK icon fallback result: ${iconBitmap != null}")
-                    }
+                    iconBitmap = apkMeta.appIcon ?: extractIconFromApkZip(baseApkFile.absolutePath)
                 }
             }
-
-            manifest?.let {
+            
+            return if (packageName.isNotEmpty()) {
                 AppMeta(
-                    packageName = it.packageName,
-                    versionName = it.versionName,
-                    appLabel = it.name,
+                    packageName = packageName,
+                    versionName = versionName,
+                    appLabel = appLabel,
                     appIcon = iconBitmap
                 )
-            } ?: AppMeta()
+            } else AppMeta()
+            
         } catch (e: Exception) {
-            DebugLog.e("MetadataReader", "readFromXapk failed: ${e.message}")
-            AppMeta()
+            DebugLog.e("MetadataReader", "readFromXapk stream failed: ${e.message}")
+            return AppMeta()
         } finally {
-            tempFile.delete()
+            baseApkFile?.delete()
         }
     }
 

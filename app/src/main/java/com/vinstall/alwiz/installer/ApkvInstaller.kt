@@ -218,91 +218,69 @@ object ApkvInstaller {
         outDir: File,
         onStep: (String) -> Unit
     ): Boolean {
-        val tempEncrypted = File(outDir, "payload_enc.tmp")
-        val tempDecrypted = File(outDir, "payload_dec.tmp")
-        try {
-            val written = FileUtil.openStream(context, uri)?.use { raw ->
+        return try {
+            FileUtil.openStream(context, uri)?.use { raw ->
                 ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
                     var entry = zip.nextEntry
-                    var found = false
+                    var success = false
                     while (entry != null) {
                         if (entry.name == ENTRY_PAYLOAD_ENC) {
-                            FileOutputStream(tempEncrypted).buffered(FileUtil.BUFFER_SIZE).use { out ->
-                                zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                            val salt = ByteArray(ApkvCrypto.SALT_BYTE_LENGTH)
+                            var saltRead = 0
+                            while (saltRead < salt.size) {
+                                val r = zip.read(salt, saltRead, salt.size - saltRead)
+                                if (r == -1) throw java.io.EOFException("Truncated salt")
+                                saltRead += r
                             }
-                            found = true
+                            
+                            val iv = ByteArray(ApkvCrypto.IV_BYTE_LENGTH)
+                            var ivRead = 0
+                            while (ivRead < iv.size) {
+                                val r = zip.read(iv, ivRead, iv.size - ivRead)
+                                if (r == -1) throw java.io.EOFException("Truncated IV")
+                                ivRead += r
+                            }
+                            
+                            val rawKey = ApkvCrypto.deriveKeyBytes(password, salt)
+                            val key = javax.crypto.spec.SecretKeySpec(rawKey, "AES")
+                            val cipher = javax.crypto.Cipher.getInstance(ApkvCrypto.CIPHER_ALGORITHM)
+                            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, key, javax.crypto.spec.IvParameterSpec(iv))
+                            
+                            onStep("Decrypting payload...")
+                            
+                            val nonCloseable = object : java.io.InputStream() {
+                                override fun read(): Int = zip.read()
+                                override fun read(b: ByteArray): Int = zip.read(b)
+                                override fun read(b: ByteArray, off: Int, len: Int): Int = zip.read(b, off, len)
+                                override fun close() {}
+                            }
+                            
+                            val cis = javax.crypto.CipherInputStream(nonCloseable, cipher)
+                            ZipInputStream(cis.buffered(FileUtil.BUFFER_SIZE)).use { innerZip ->
+                                var innerEntry = innerZip.nextEntry
+                                while (innerEntry != null) {
+                                    if (!innerEntry.isDirectory && innerEntry.name.lowercase().endsWith(".apk")) {
+                                        val name = File(innerEntry.name).name
+                                        onStep("Extracting $name...")
+                                        File(outDir, name).outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
+                                            innerZip.copyTo(out, FileUtil.BUFFER_SIZE)
+                                        }
+                                    }
+                                    innerZip.closeEntry()
+                                    innerEntry = innerZip.nextEntry
+                                }
+                            }
+                            success = true
                             break
                         }
                         zip.closeEntry()
                         entry = zip.nextEntry
                     }
-                    found
+                    success
                 }
             } ?: false
-
-            if (!written) return false
-
-            onStep("Decrypting payload...")
-            if (!streamDecryptFile(tempEncrypted, tempDecrypted, password)) return false
-
-            ZipInputStream(FileInputStream(tempDecrypted).buffered(FileUtil.BUFFER_SIZE)).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    if (!entry.isDirectory && entry.name.lowercase().endsWith(".apk")) {
-                        val name = File(entry.name).name
-                        onStep("Extracting $name...")
-                        File(outDir, name).outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
-                            zip.copyTo(out, FileUtil.BUFFER_SIZE)
-                        }
-                    }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
-                }
-            }
-            return true
-        } finally {
-            tempEncrypted.delete()
-            tempDecrypted.delete()
-        }
-    }
-
-    private fun streamDecryptFile(input: File, output: File, password: String): Boolean {
-        return try {
-            FileInputStream(input).use { fis ->
-                val dis = DataInputStream(fis)
-                val salt = ByteArray(ApkvCrypto.SALT_BYTE_LENGTH).also { dis.readFully(it) }
-                val iv   = ByteArray(ApkvCrypto.IV_BYTE_LENGTH).also   { dis.readFully(it) }
-
-                val rawKey = ApkvCrypto.deriveKeyBytes(password, salt)
-                val key     = SecretKeySpec(rawKey, "AES")
-
-                val cipher = Cipher.getInstance(ApkvCrypto.CIPHER_ALGORITHM)
-                cipher.init(Cipher.DECRYPT_MODE, key, IvParameterSpec(iv))
-
-                CipherInputStream(fis, cipher).use { cis ->
-                    FileOutputStream(output).buffered(FileUtil.BUFFER_SIZE).use { out ->
-                        cis.copyTo(out, FileUtil.BUFFER_SIZE)
-                    }
-                }
-            }
-
-            val magic = ByteArray(4)
-            FileInputStream(output).use { fis ->
-                fis.read(magic)
-            }
-            val isValidZip = magic.size == 4
-                && magic[0] == 0x50.toByte()
-                && magic[1] == 0x4B.toByte()
-                && magic[2] == 0x03.toByte()
-                && magic[3] == 0x04.toByte()
-            if (!isValidZip) {
-                com.vinstall.alwiz.util.DebugLog.e("ApkvInstaller", "streamDecryptFile: ZIP magic check failed — wrong password or corrupt payload")
-                return false
-            }
-
-            true
         } catch (e: Exception) {
-            com.vinstall.alwiz.util.DebugLog.e("ApkvInstaller", "streamDecryptFile failed: ${e.message}")
+            com.vinstall.alwiz.util.DebugLog.e("ApkvInstaller", "extractEncrypted streaming failed: ${e.message}")
             false
         }
     }

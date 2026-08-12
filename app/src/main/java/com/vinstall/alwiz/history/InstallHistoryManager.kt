@@ -19,6 +19,7 @@ object InstallHistoryManager {
     private fun historyFile(context: Context): File =
         File(context.filesDir, FILE_NAME)
 
+    @Synchronized
     fun getAll(context: Context): List<InstallHistoryEntry> {
         // Si ya lo tenemos en memoria, lo devolvemos directamente (¡Súper rápido!)
         cachedHistory?.let { return it.toList() }
@@ -38,14 +39,15 @@ object InstallHistoryManager {
         return loaded.toList()
     }
 
+    @Synchronized
     fun add(context: Context, entry: InstallHistoryEntry) {
-        // Usamos la caché si existe, si no, la cargamos por primera vez
         val current = cachedHistory ?: getAll(context).toMutableList()
         current.add(0, entry)
-        cachedHistory = current // Actualizamos la caché en memoria
-        save(context, current)  // Guardamos en disco
+        cachedHistory = current
+        save(context, current)
     }
 
+    @Synchronized
     fun remove(context: Context, id: String) {
         val current = cachedHistory ?: getAll(context).toMutableList()
         val updated = current.filter { it.id != id }.toMutableList()
@@ -53,15 +55,18 @@ object InstallHistoryManager {
         save(context, updated)
     }
 
+    @Synchronized
     fun clear(context: Context) {
         historyFile(context).delete()
-        cachedHistory = mutableListOf() // Limpiamos también la caché
+        cachedHistory = mutableListOf()
     }
 
+    @Synchronized
     fun count(context: Context): Int {
         return (cachedHistory ?: getAll(context)).size
     }
 
+    @Synchronized
     private fun save(context: Context, entries: List<InstallHistoryEntry>) {
         historyFile(context).writeText(gson.toJson(entries))
     }

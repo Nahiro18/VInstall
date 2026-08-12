@@ -22,6 +22,7 @@ class InstallHistoryActivity : AppCompatActivity() {
     private lateinit var adapter: InstallHistoryAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.vinstall.alwiz.settings.AppSettings.applyActivityTheme(this)
         super.onCreate(savedInstanceState)
         binding = ActivityInstallHistoryBinding.inflate(layoutInflater)
         setContentView(binding.root)

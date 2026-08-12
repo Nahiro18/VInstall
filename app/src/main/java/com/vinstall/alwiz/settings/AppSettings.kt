@@ -73,4 +73,11 @@ object AppSettings {
     fun setDialogStyle(context: Context, style: DialogStyle) {
         prefs(context).edit().putString(KEY_DIALOG_STYLE, style.name).apply()
     }
+
+    fun applyActivityTheme(activity: android.app.Activity) {
+        val theme = getTheme(activity)
+        if (theme == "amoled" && activity::class.java.simpleName != "InstallIntentActivity") {
+            activity.setTheme(com.vinstall.alwiz.R.style.Theme_UniversalInstaller_AMOLED)
+        }
+    }
 }

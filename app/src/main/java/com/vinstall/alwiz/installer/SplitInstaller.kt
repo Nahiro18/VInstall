@@ -312,8 +312,10 @@ object SplitInstaller {
                     ?: return@withContext Result.failure(Exception("Root: failed to create install session"))
 
                 apkFiles.forEachIndexed { index, apk ->
+                    val safeName = apk.name.replace("'", "'\\''")
+                    val safePath = apk.absolutePath.replace("'", "'\\''")
                     Runtime.getRuntime().exec(
-                        arrayOf("su", "-c", "pm install-write -S ${apk.length()} $sessionId ${apk.name} ${apk.absolutePath}")
+                        arrayOf("su", "-c", "pm install-write -S ${apk.length()} $sessionId '$safeName' '$safePath'")
                     ).let { process -> process.waitFor() }
                     onProgress?.invoke(((index + 1).toFloat() / apkFiles.size) * 0.9f)
                 }

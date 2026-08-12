@@ -66,6 +66,7 @@ class AppDetailActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppSettings.applyActivityTheme(this)
         super.onCreate(savedInstanceState)
         binding = ActivityAppDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)

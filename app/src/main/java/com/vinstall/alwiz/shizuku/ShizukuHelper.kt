@@ -39,18 +39,7 @@ object ShizukuHelper {
         false
     }
 
-    // A relic of the past - once planned, never used, but too memorable to remove :)
-    fun isSuiAvailable(): Boolean {
-        return try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) false
-            else {
-                rikka.sui.Sui.init("com.vinstall.alwiz")
-                rikka.sui.Sui.isSui()
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
+
 
     fun shouldShowRationale(): Boolean = try {
         if (Shizuku.isPreV11()) false

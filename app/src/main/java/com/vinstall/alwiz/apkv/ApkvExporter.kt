@@ -234,76 +234,57 @@ object ApkvExporter {
             ApkvCrypto.encrypt(it, password)
         }
 
-        val tempPayload = File(outFile.parent, "${outFile.name}.tmp")
-        try {
-            onStep("Building payload archive...")
-            buildPayloadZipToFile(apkFiles, tempPayload, onStep)
+        ZipOutputStream(outFile.outputStream().buffered()).use { zos ->
+            zos.putNextEntry(ZipEntry(ENTRY_ENCRYPTED_MARKER))
+            zos.write(ByteArray(0))
+            zos.closeEntry()
 
-            ZipOutputStream(outFile.outputStream().buffered()).use { zos ->
-                zos.putNextEntry(ZipEntry(ENTRY_ENCRYPTED_MARKER))
-                zos.write(ByteArray(0))
+            zos.putNextEntry(ZipEntry(ENTRY_HEADER))
+            zos.write(header.toJson().toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            zos.putNextEntry(ZipEntry(ENTRY_MANIFEST_ENC))
+            zos.write(encryptedManifest)
+            zos.closeEntry()
+
+            if (encryptedIcon != null) {
+                zos.putNextEntry(ZipEntry(ENTRY_ICON_ENC))
+                zos.write(encryptedIcon)
                 zos.closeEntry()
+            }
 
-                zos.putNextEntry(ZipEntry(ENTRY_HEADER))
-                zos.write(header.toJson().toByteArray(Charsets.UTF_8))
-                zos.closeEntry()
+            onStep("Encrypting payload...")
+            zos.putNextEntry(ZipEntry(ENTRY_PAYLOAD_ENC))
+            
+            val salt = ByteArray(ApkvCrypto.SALT_BYTE_LENGTH).also { SecureRandom().nextBytes(it) }
+            val iv   = ByteArray(ApkvCrypto.IV_BYTE_LENGTH).also   { SecureRandom().nextBytes(it) }
+            val raw = ApkvCrypto.deriveKeyBytes(password, salt)
+            val key  = SecretKeySpec(raw, KEY_ALGORITHM)
+            val cipher = Cipher.getInstance(ApkvCrypto.CIPHER_ALGORITHM)
+            cipher.init(Cipher.ENCRYPT_MODE, key, IvParameterSpec(iv))
 
-                zos.putNextEntry(ZipEntry(ENTRY_MANIFEST_ENC))
-                zos.write(encryptedManifest)
-                zos.closeEntry()
+            zos.write(salt)
+            zos.write(iv)
 
-                if (encryptedIcon != null) {
-                    zos.putNextEntry(ZipEntry(ENTRY_ICON_ENC))
-                    zos.write(encryptedIcon)
-                    zos.closeEntry()
+            val nonCloseable = object : OutputStream() {
+                override fun write(b: Int) { zos.write(b) }
+                override fun write(b: ByteArray) { zos.write(b) }
+                override fun write(b: ByteArray, off: Int, len: Int) { zos.write(b, off, len) }
+                override fun flush() { zos.flush() }
+                override fun close() {}
+            }
+
+            val cos = javax.crypto.CipherOutputStream(nonCloseable, cipher)
+            ZipOutputStream(cos.buffered(STREAM_BUFFER_SIZE)).use { innerZos ->
+                for (apk in apkFiles) {
+                    onStep("Packing ${apk.name}...")
+                    innerZos.putNextEntry(ZipEntry(apk.name))
+                    FileInputStream(apk).use { it.copyTo(innerZos, STREAM_BUFFER_SIZE) }
+                    innerZos.closeEntry()
                 }
-
-                onStep("Encrypting payload...")
-                zos.putNextEntry(ZipEntry(ENTRY_PAYLOAD_ENC))
-                streamEncryptFileTo(tempPayload, zos, password)
-                zos.closeEntry()
             }
-        } finally {
-            tempPayload.delete()
-        }
-    }
-
-    private fun buildPayloadZipToFile(
-        apkFiles: List<File>,
-        destFile: File,
-        onStep: (String) -> Unit
-    ) {
-        ZipOutputStream(destFile.outputStream().buffered(STREAM_BUFFER_SIZE)).use { zos ->
-            for (apk in apkFiles) {
-                onStep("Packing ${apk.name}...")
-                zos.putNextEntry(ZipEntry(apk.name))
-                FileInputStream(apk).use { it.copyTo(zos, STREAM_BUFFER_SIZE) }
-                zos.closeEntry()
-            }
-        }
-    }
-
-    private fun streamEncryptFileTo(inputFile: File, out: OutputStream, password: String) {
-        val salt = ByteArray(ApkvCrypto.SALT_BYTE_LENGTH).also { SecureRandom().nextBytes(it) }
-        val iv   = ByteArray(ApkvCrypto.IV_BYTE_LENGTH).also   { SecureRandom().nextBytes(it) }
-
-        val raw = ApkvCrypto.deriveKeyBytes(password, salt)
-        val key  = SecretKeySpec(raw, KEY_ALGORITHM)
-
-        val cipher = Cipher.getInstance(ApkvCrypto.CIPHER_ALGORITHM)
-        cipher.init(Cipher.ENCRYPT_MODE, key, IvParameterSpec(iv))
-
-        out.write(salt)
-        out.write(iv)
-
-        FileInputStream(inputFile).use { fis ->
-            val buffer = ByteArray(STREAM_BUFFER_SIZE)
-            var read: Int
-            while (fis.read(buffer).also { read = it } != -1) {
-                val chunk = cipher.update(buffer, 0, read)
-                if (chunk != null) out.write(chunk)
-            }
-            out.write(cipher.doFinal())
+            cos.close()
+            zos.closeEntry()
         }
     }
 }

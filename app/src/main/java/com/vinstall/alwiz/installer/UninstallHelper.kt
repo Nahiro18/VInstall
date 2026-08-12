@@ -31,8 +31,9 @@ object UninstallHelper {
         }
 
     private fun uninstallViaRoot(packageName: String): Result<Unit> = try {
-        DebugLog.d("Uninstall", "Via root: pm uninstall $packageName")
-        val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "pm uninstall $packageName"))
+        val safePackage = packageName.replace("'", "'\\''")
+        DebugLog.d("Uninstall", "Via root: pm uninstall $safePackage")
+        val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "pm uninstall '$safePackage'"))
         val output = process.inputStream.bufferedReader().readText().trim()
         val err = process.errorStream.bufferedReader().readText().trim()
         process.waitFor()

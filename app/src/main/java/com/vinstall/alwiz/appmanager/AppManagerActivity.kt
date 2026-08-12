@@ -28,6 +28,7 @@ class AppManagerActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.vinstall.alwiz.settings.AppSettings.applyActivityTheme(this)
         super.onCreate(savedInstanceState)
         binding = ActivityAppManagerBinding.inflate(layoutInflater)
         setContentView(binding.root)

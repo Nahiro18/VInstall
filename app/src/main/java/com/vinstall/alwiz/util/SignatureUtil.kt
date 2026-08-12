@@ -55,7 +55,8 @@ object SignatureUtil {
             if (certificates.isEmpty()) return null
 
             val cert = certificates[0]
-            val x509 = cert as? X509Certificate ?: return null
+            val certFactory = java.security.cert.CertificateFactory.getInstance("X.509")
+            val x509 = certFactory.generateCertificate(java.io.ByteArrayInputStream(cert.toByteArray())) as? X509Certificate ?: return null
 
             val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             val validFrom = try { dateFormat.format(x509.notBefore) } catch (_: Exception) { null }

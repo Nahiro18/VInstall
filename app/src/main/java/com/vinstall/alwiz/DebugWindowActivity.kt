@@ -17,6 +17,7 @@ class DebugWindowActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDebugBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.vinstall.alwiz.settings.AppSettings.applyActivityTheme(this)
         super.onCreate(savedInstanceState)
         binding = ActivityDebugBinding.inflate(layoutInflater)
         setContentView(binding.root)

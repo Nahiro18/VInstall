@@ -252,53 +252,57 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
             val items = placeholders.toMutableList()
 
-            for (i in items.indices) {
-                val placeholder = items[i]
-                try {
-                    val name = placeholder.displayName
-                    val format = PackageFormat.fromFileName(name)
+            kotlinx.coroutines.coroutineScope {
+                placeholders.forEachIndexed { index, placeholder ->
+                    launch(Dispatchers.IO) {
+                        try {
+                            val name = placeholder.displayName
+                            val format = PackageFormat.fromFileName(name)
+                            var updatedMetaItem = placeholder
 
-                    if (format == PackageFormat.APKV && ApkvInstaller.isEncrypted(context, placeholder.uri)) {
-                        val header = ApkvInstaller.readHeader(context, placeholder.uri)
-                        items[i] = placeholder.copy(
-                            appLabel = header?.label ?: "",
-                            packageName = header?.packageName ?: "",
-                            versionName = header?.versionName ?: "",
-                            isEncryptedApkv = true
-                        )
-                        _queueItems.value = items.toList()
-                        continue
+                            if (format == PackageFormat.APKV && ApkvInstaller.isEncrypted(context, placeholder.uri)) {
+                                val header = ApkvInstaller.readHeader(context, placeholder.uri)
+                                updatedMetaItem = placeholder.copy(
+                                    appLabel = header?.label ?: "",
+                                    packageName = header?.packageName ?: "",
+                                    versionName = header?.versionName ?: "",
+                                    isEncryptedApkv = true
+                                )
+                            } else {
+                                val meta = when (format) {
+                                    PackageFormat.APK  -> MetadataReader.readFromApk(context, placeholder.uri, name)
+                                    PackageFormat.XAPK -> MetadataReader.readFromXapk(context, placeholder.uri)
+                                    PackageFormat.APKM -> MetadataReader.readFromApkm(context, placeholder.uri)
+                                    PackageFormat.APKS,
+                                    PackageFormat.ZIP  -> MetadataReader.readFromApks(context, placeholder.uri)
+                                    PackageFormat.APKV -> MetadataReader.readFromApkv(context, placeholder.uri)
+                                    else               -> MetadataReader.AppMeta()
+                                }
+                                updatedMetaItem = placeholder.copy(
+                                    appLabel    = meta.appLabel,
+                                    packageName = meta.packageName,
+                                    versionName = meta.versionName,
+                                    versionCode = meta.versionCode,
+                                    appIcon     = meta.appIcon
+                                )
+                            }
+
+                            synchronized(items) {
+                                items[index] = updatedMetaItem
+                                _queueItems.value = items.toList()
+                            }
+
+                            val hash = FileUtil.computeHash(context, placeholder.uri)
+                            val finalItem = updatedMetaItem.copy(sha256 = hash)
+                            
+                            synchronized(items) {
+                                items[index] = finalItem
+                                _queueItems.value = items.toList()
+                            }
+                        } catch (e: Exception) {
+                            DebugLog.e("MainViewModel", "Parallel queue load failed for ${placeholder.displayName}: ${e.message}")
+                        }
                     }
-
-                    val meta = when (format) {
-                        PackageFormat.APK  -> MetadataReader.readFromApk(context, placeholder.uri, name)
-                        PackageFormat.XAPK -> MetadataReader.readFromXapk(context, placeholder.uri)
-                        PackageFormat.APKM -> MetadataReader.readFromApkm(context, placeholder.uri)
-                        PackageFormat.APKS,
-                        PackageFormat.ZIP  -> MetadataReader.readFromApks(context, placeholder.uri)
-                        PackageFormat.APKV -> MetadataReader.readFromApkv(context, placeholder.uri)
-                        else               -> MetadataReader.AppMeta()
-                    }
-                    items[i] = placeholder.copy(
-                        appLabel    = meta.appLabel,
-                        packageName = meta.packageName,
-                        versionName = meta.versionName,
-                        versionCode = meta.versionCode,
-                        appIcon     = meta.appIcon
-                    )
-                    _queueItems.value = items.toList()
-                } catch (e: Exception) {
-                    DebugLog.e("MainViewModel", "buildQueueItems meta failed for ${placeholder.displayName}: ${e.message}")
-                }
-            }
-
-            for (i in items.indices) {
-                try {
-                    val hash = FileUtil.computeHash(context, items[i].uri)
-                    items[i] = items[i].copy(sha256 = hash)
-                    _queueItems.value = items.toList()
-                } catch (e: Exception) {
-                    DebugLog.e("MainViewModel", "buildQueueItems hash failed for ${items[i].displayName}: ${e.message}")
                 }
             }
         }

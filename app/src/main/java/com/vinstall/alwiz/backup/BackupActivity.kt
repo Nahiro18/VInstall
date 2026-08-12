@@ -30,6 +30,7 @@ class BackupActivity : AppCompatActivity() {
     // --------------------------------------------------------------
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.vinstall.alwiz.settings.AppSettings.applyActivityTheme(this)
         super.onCreate(savedInstanceState)
         binding = ActivityBackupBinding.inflate(layoutInflater)
         setContentView(binding.root)
