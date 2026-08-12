@@ -45,6 +45,12 @@ object MetadataReader {
         "app_icon", "icon", "launcher"
     )
 
+    private fun isManifestEntry(name: String): Boolean {
+        val normalized = name.replace('\\', '/').trimStart('/')
+        return normalized.equals("manifest.json", ignoreCase = true)
+            || normalized.endsWith("/manifest.json", ignoreCase = true)
+    }
+
     private fun extractIconFromApkZip(apkPath: String): Bitmap? {
         return try {
             var bestDIdx = Int.MAX_VALUE

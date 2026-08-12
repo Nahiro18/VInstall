@@ -64,9 +64,9 @@ object SignatureUtil {
 
             SignatureInfo(
                 signerName = x509.subjectDN?.name,
-                fingerprintMD5 = getFingerprint(cert, "MD5"),
-                fingerprintSHA1 = getFingerprint(cert, "SHA-1"),
-                fingerprintSHA256 = getFingerprint(cert, "SHA-256"),
+                fingerprintMD5 = getFingerprint(x509, "MD5"),
+                fingerprintSHA1 = getFingerprint(x509, "SHA-1"),
+                fingerprintSHA256 = getFingerprint(x509, "SHA-256"),
                 validFrom = validFrom,
                 validUntil = validUntil,
                 isValid = isCertificateValid(x509)
