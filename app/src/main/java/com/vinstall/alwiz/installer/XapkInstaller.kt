@@ -76,7 +76,7 @@ object XapkInstaller {
         }
     }
 
-    // --- MODIFICACIÓN: Usar ZipInputStream en lugar de copiar el archivo entero a disco ---
+    // --- MODIFICATION: Use ZipInputStream instead of copying entire file to disk ---
     fun listSplits(context: Context, uri: Uri): List<String> {
         val splits = mutableListOf<String>()
         val stream = FileUtil.openStream(context, uri) ?: return splits

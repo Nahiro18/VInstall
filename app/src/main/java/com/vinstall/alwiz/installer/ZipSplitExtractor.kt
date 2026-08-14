@@ -8,17 +8,17 @@ import java.io.File
 import java.util.zip.ZipInputStream
 
 /**
- * Utilidad centralizada para extraer archivos APK de archivos ZIP.
- * Elimina duplicación de código entre ApksInstaller, ApkmInstaller y ZipApkInstaller.
+ * Centralized utility for extracting APK files from ZIP archives.
+ * Reduces code duplication between ApksInstaller, ApkmInstaller, and ZipApkInstaller.
  */
 object ZipSplitExtractor {
 
     /**
-     * Lista todos los archivos .apk dentro de un archivo ZIP sin extraerlos.
+     * Lists all .apk files within a ZIP archive without extracting them.
      * 
-     * @param context Contexto de Android
-     * @param uri URI del archivo ZIP
-     * @return Lista de nombres de archivos APK encontrados
+     * @param context Android context
+     * @param uri URI of the ZIP file
+     * @return List of APK file names found
      */
     fun listSplits(context: Context, uri: Uri): List<String> {
         val splits = mutableListOf<String>()
@@ -43,14 +43,14 @@ object ZipSplitExtractor {
     }
 
     /**
-     * Extrae todos los archivos .apk de un ZIP a un directorio de salida.
+     * Extracts all .apk files from a ZIP to an output directory.
      * 
-     * @param context Contexto de Android
-     * @param uri URI del archivo ZIP
-     * @param outDir Directorio donde extraer los archivos
-     * @param onStep Callback para reportar progreso de extracción
-     * @param reportTotalProgress Si es true, reporta progreso total basado en bytes extraídos
-     * @return Lista de archivos APK extraídos
+     * @param context Android context
+     * @param uri URI of the ZIP file
+     * @param outDir Directory to extract files to
+     * @param onStep Callback for reporting extraction progress
+     * @param reportTotalProgress If true, reports total progress based on bytes extracted
+     * @return List of extracted APK files
      */
     fun extractApks(
         context: Context,
@@ -62,7 +62,7 @@ object ZipSplitExtractor {
         val extractedFiles = mutableListOf<File>()
         
         if (reportTotalProgress) {
-            // Con progreso total (usado por ApksInstaller y ApkmInstaller)
+            // With total progress (used by ApksInstaller and ApkmInstaller)
             val totalSize = FileUtil.getFileSize(context, uri).coerceAtLeast(1L)
             var extractedBytes = 0L
             
@@ -93,7 +93,7 @@ object ZipSplitExtractor {
                 }
             }
         } else {
-            // Sin progreso total detallado (usado por ZipApkInstaller)
+            // Without detailed total progress (used by ZipApkInstaller)
             val stream = FileUtil.openStream(context, uri) ?: return extractedFiles
             ZipInputStream(stream.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
                 var entry = zip.nextEntry

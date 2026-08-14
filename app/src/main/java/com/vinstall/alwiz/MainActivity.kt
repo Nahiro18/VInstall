@@ -109,14 +109,14 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnSelect.setOnClickListener { filePicker.launch(arrayOf("*/*")) }
 
-        // --- MODIFICACIÓN DE OPTIMIZACIÓN ---
+        // --- MODIFICATION - OPTIMIZATION ---
         lifecycleScope.launch {
             viewModel.queueItems.collect { newItems ->
                 if (newItems.isEmpty()) return@collect
                 if (newItems.size != queueAdapter.itemCount) {
                     queueAdapter.setItems(newItems)
                 } else {
-                    queueAdapter.updateAll(newItems) // Cambio aquí: O(N) en lugar de O(N^2)
+                    queueAdapter.updateAll(newItems) // Change here: O(N) instead of O(N^2)
                 }
             }
         }

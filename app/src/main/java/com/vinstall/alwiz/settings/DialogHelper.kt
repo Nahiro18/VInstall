@@ -63,11 +63,11 @@ object DialogHelper {
                 if (appInstallInfo != null) {
                     val view = activity.layoutInflater.inflate(R.layout.dialog_app_info, null)
                     
-                    // --- OPTIMIZACIÓN: Usar función helper compartida ---
+                    // --- OPTIMIZATION: Use shared helper function ---
                     ConfirmationBottomSheet.bindAppInfoToView(view, appInstallInfo, activity)
                     // ---------------------------------------------------
                     
-                    // Solo obtener las referencias para progreso
+                    // Get references only for progress
                     progressLayout = view.findViewById(R.id.layout_progress)
                     progressBar = view.findViewById(R.id.progress_install)
                     progressText = view.findViewById(R.id.text_progress_status)

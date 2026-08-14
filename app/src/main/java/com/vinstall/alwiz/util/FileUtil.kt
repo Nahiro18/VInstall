@@ -100,27 +100,27 @@ object FileUtil {
         }
     }
 
-    // --- MODIFICACIÓN: Limpieza segura de caché ---
-    // Solo borra archivos/directorios que VInstall crea específicamente,
-    // en lugar de borrar TODO el directorio de caché.
+    // --- MODIFICATION: Safe cache cleanup ---
+    // Only deletes files/directories that VInstall specifically creates,
+    // instead of deleting the entire cache directory.
     fun clearCache(context: Context) {
         val cacheDir = context.cacheDir
-        
-        // Prefijos de archivos temporales creados por MetadataReader
+
+        // Prefixes of temporary files created by MetadataReader
         val metaPrefixes = listOf("meta_", "install.apk")
-        
-        // Directorios de extracción creados por los instaladores
+
+        // Directories created by installers
         val extractDirs = listOf("apks_extract", "xapk_extract", "apkv_extract")
-        
+
         cacheDir.listFiles()?.forEach { file ->
             val shouldDelete = when {
-                // Borrar directorios de extracción
+                // Delete extraction directories
                 file.isDirectory && file.name in extractDirs -> true
-                // Borrar archivos temporales de metadatos
+                // Delete temporary metadata files
                 !file.isDirectory && metaPrefixes.any { file.name.startsWith(it) } -> true
                 else -> false
             }
-            
+
             if (shouldDelete) {
                 try {
                     if (file.isDirectory) {
@@ -134,5 +134,4 @@ object FileUtil {
             }
         }
     }
-    // ----------------------------------------------
 }

@@ -32,9 +32,9 @@ class AppListAdapter(
             binding.chipSystem.visibility = if (app.isSystemApp)
                 android.view.View.VISIBLE else android.view.View.GONE
 
-            // --- MODIFICACIÓN DE CORRECCIÓN ---
-            // Cargamos el icono directamente aquí usando el packageName.
-            // Esto evita cargar cientos de iconos en memoria al abrir la pantalla.
+            // --- MODIFICATION FIX ---
+            // Load icon directly here using the packageName.
+            // This avoids loading hundreds of icons into memory when opening the screen.
             val iconDrawable = try {
                 binding.root.context.packageManager.getApplicationIcon(app.packageName)
             } catch (_: Exception) { null }

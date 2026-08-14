@@ -53,20 +53,20 @@ object ApkvCrypto {
         }
     }
 
-    // --- MODIFICACIÓN: Usar PBKDF2 nativo en Android 8+ (mucho más rápido) ---
+    // --- MODIFICATION: Use native PBKDF2 on Android 8+ (much faster) ---
     fun deriveKeyBytes(password: String, salt: ByteArray): ByteArray {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Android 8.0+ tiene soporte nativo para PBKDF2WithHmacSHA256
+            // Android 8.0+ has native support for PBKDF2WithHmacSHA256
             try {
                 val spec = PBEKeySpec(password.toCharArray(), salt, KDF_ITERATIONS, KEY_BIT_LENGTH)
                 val factory = SecretKeyFactory.getInstance(KDF_ALGORITHM)
                 factory.generateSecret(spec).encoded
             } catch (_: Exception) {
-                // Si falla por alguna razón, usar el fallback manual
+                // If it fails for any reason, use the manual fallback
                 pbkdf2(password.toByteArray(Charsets.UTF_8), salt, KDF_ITERATIONS, KEY_BIT_LENGTH / 8)
             }
         } else {
-            // Android 7.x y anteriores: usar implementación manual
+            // Android 7.x and earlier: use manual implementation
             pbkdf2(password.toByteArray(Charsets.UTF_8), salt, KDF_ITERATIONS, KEY_BIT_LENGTH / 8)
         }
     }

@@ -13,9 +13,9 @@ object DebugLog {
     private const val MAX_ENTRIES = 300
     private val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
-    // --- OPTIMIZACIÓN: ArrayDeque es mucho más eficiente (O(1)) para agregar/quitar elementos ---
+    // --- OPTIMIZATION: ArrayDeque is much more efficient (O(1)) for adding/removing elements ---
     private val logQueue = ArrayDeque<String>(MAX_ENTRIES)
-    // --------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
 
     private val _entries = MutableStateFlow<List<String>>(emptyList())
     val entries: StateFlow<List<String>> = _entries
@@ -44,16 +44,16 @@ object DebugLog {
         val ts = fmt.format(Date())
         val entry = "[$ts] $line"
 
-        // --- CORRECCIÓN: Sincronización para evitar crashes por concurrencia ---
+        // --- FIX: Synchronization to avoid crashes from concurrent access ---
         synchronized(logQueue) {
             logQueue.addLast(entry)
             
-            // Si excedemos el límite, eliminamos el más antiguo en O(1) tiempo
+            // If we exceed the limit, remove the oldest one in O(1) time
             if (logQueue.size > MAX_ENTRIES) {
                 logQueue.removeFirst()
             }
             
-            // Emitimos una snapshot rápida a la UI (DebugWindow)
+            // Emit a quick snapshot to the UI (DebugWindow)
             _entries.value = logQueue.toList()
         }
         // -----------------------------------------------------------------------

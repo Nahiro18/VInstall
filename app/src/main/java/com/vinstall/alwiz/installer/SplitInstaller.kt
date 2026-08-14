@@ -191,11 +191,11 @@ object SplitInstaller {
                 DebugLog.e("SplitInstaller", "Session error: ${e.message}")
                 Result.failure(e)
             } finally {
-                // Corrección: asegurar que la sesión se cierre siempre
+                // Fix: ensure session is closed even on error
                 try {
                     session.close()
                 } catch (_: Exception) {
-                    // Ignorar errores al cerrar
+                    // Ignore errors on close
                 }
             }
         }
