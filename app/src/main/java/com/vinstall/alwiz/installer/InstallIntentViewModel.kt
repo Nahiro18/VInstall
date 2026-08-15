@@ -115,7 +115,7 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
                 PackageFormat.APK -> {
                     DebugLog.d("InstallIntentVM", "Installing APK directly via SplitInstaller")
                     _state.value = InstallState.Installing("Copying APK...")
-                    val cachedApk = FileUtil.extractToCache(context, uri, "install.apk")
+                    val cachedApk = FileUtil.getOrExtractApk(context, uri, fileState.name)
                     _state.value = InstallState.Installing("Installing...")
                     SplitInstaller.installSplits(context, listOf(cachedApk), onProgress = { progress ->
                         val step = (_state.value as? InstallState.Installing)?.step ?: ""

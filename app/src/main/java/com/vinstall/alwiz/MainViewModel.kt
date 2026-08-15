@@ -433,7 +433,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             PackageFormat.APK -> {
                 DebugLog.d("MainViewModel", "Installing APK directly via SplitInstaller")
                 stepCallback("Copying APK...")
-                val cachedApk = FileUtil.extractToCache(context, fileState.uri, "install.apk")
+                val cachedApk = FileUtil.getOrExtractApk(context, fileState.uri, fileState.name)
                 stepCallback("Installing...")
                 SplitInstaller.installSplits(context, listOf(cachedApk), onProgress = progressCallback)
             }

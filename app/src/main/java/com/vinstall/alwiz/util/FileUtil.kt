@@ -61,6 +61,17 @@ object FileUtil {
         return target
     }
 
+    // --- OPTIMIZATION: reuse the APK already copied to cache for metadata,
+    // avoiding a second full copy when installing a simple APK. Falls back
+    // to extracting normally if the cached file is missing, empty or stale. ---
+    fun getOrExtractApk(context: Context, uri: Uri, name: String): File {
+        val cached = File(context.cacheDir, "meta_${name.hashCode()}.apk")
+        if (cached.exists() && cached.length() > 0L && cached.length() == getFileSize(context, uri)) {
+            return cached
+        }
+        return extractToCache(context, uri, "install.apk")
+    }
+
     fun copyWithProgress(
         input: InputStream,
         output: OutputStream,
