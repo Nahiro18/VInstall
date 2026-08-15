@@ -10,7 +10,6 @@ import com.vinstall.alwiz.util.DebugLog
 import com.vinstall.alwiz.util.FileUtil
 import java.io.File
 import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
 
 object XapkInstaller {
 
@@ -32,7 +31,7 @@ object XapkInstaller {
                 it.mkdirs()
             }
 
-            val manifest = extractWithZipInputStream(context, uri, cacheDir, onStep)
+            val manifest = extractWithZipFile(context, uri, cacheDir, onStep)
                 ?: return Result.failure(Exception("Invalid XAPK: manifest.json not found in archive"))
 
             DebugLog.i("XapkInstaller", "Manifest parsed: pkg=${manifest.packageName} splitBundle=${manifest.isSplitApkBundle()} expansions=${manifest.hasExpansions()}")
@@ -76,68 +75,80 @@ object XapkInstaller {
         }
     }
 
-    // --- MODIFICATION: Use ZipInputStream instead of copying entire file to disk ---
     fun listSplits(context: Context, uri: Uri): List<String> {
         val splits = mutableListOf<String>()
-        val stream = FileUtil.openStream(context, uri) ?: return splits
-        
+        val tempFile = File(context.cacheDir, "xapk_list_${System.nanoTime()}.xapk")
         try {
-            ZipInputStream(stream.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
+            copyUriToFile(context, uri, tempFile)
+            ZipFile(tempFile).use { zip ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
                     if (!entry.isDirectory && entry.name.endsWith(".apk")) {
                         splits.add(File(entry.name).name)
                     }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
                 }
             }
         } catch (e: Exception) {
             DebugLog.e("XapkInstaller", "listSplits error: ${e.message}")
+        } finally {
+            tempFile.delete()
         }
         return splits
     }
-    // ---------------------------------------------------------------------------------------
 
-    private fun extractWithZipInputStream(
+    private fun extractWithZipFile(
         context: Context,
         uri: Uri,
         outDir: File,
         onStep: (String) -> Unit
     ): XapkManifest? {
-        val stream = FileUtil.openStream(context, uri) ?: return null
-        var manifest: XapkManifest? = null
-        try {
-            ZipInputStream(stream.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    val name = entry.name
+        val tempFile = File(context.cacheDir, "xapk_extract_${System.nanoTime()}.xapk")
+        return try {
+            onStep("Copying to cache...")
+            copyUriToFile(context, uri, tempFile)
+
+            var manifest: XapkManifest? = null
+
+            ZipFile(tempFile).use { zip ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
                     when {
-                        !entry.isDirectory && isManifestEntry(name) -> {
-                            val text = zip.readBytes().toString(Charsets.UTF_8)
+                        !entry.isDirectory && isManifestEntry(entry.name) -> {
+                            val text = zip.getInputStream(entry).readBytes()
+                                .toString(Charsets.UTF_8)
                                 .trimStart('\uFEFF')
                                 .trim()
-                            DebugLog.d("XapkInstaller", "manifest.json found in stream, raw: ${text.take(512)}")
+                            DebugLog.d("XapkInstaller", "manifest.json found at entry='${entry.name}', raw: ${text.take(512)}")
                             manifest = gson.fromJson(text, XapkManifest::class.java)
                         }
-                        !entry.isDirectory && (name.endsWith(".apk") || name.endsWith(".obb")) -> {
-                            val fileName = File(name).name
+                        !entry.isDirectory && (entry.name.endsWith(".apk") || entry.name.endsWith(".obb")) -> {
+                            val fileName = File(entry.name).name
                             val outFile = File(outDir, fileName)
                             onStep("Extracting $fileName...")
-                            outFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
-                                zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                            zip.getInputStream(entry).buffered(FileUtil.BUFFER_SIZE).use { input ->
+                                outFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
+                                    input.copyTo(out, FileUtil.BUFFER_SIZE)
+                                }
                             }
                             DebugLog.d("XapkInstaller", "Extracted: $fileName (${outFile.length()} bytes)")
                         }
                     }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
                 }
             }
-        } catch (e: Exception) {
-            DebugLog.e("XapkInstaller", "extractWithZipInputStream error: ${e.message}")
+            manifest
+        } finally {
+            tempFile.delete()
         }
-        return manifest
+    }
+
+    private fun copyUriToFile(context: Context, uri: Uri, dest: File) {
+        FileUtil.openStream(context, uri)?.use { input ->
+            dest.outputStream().buffered(FileUtil.BUFFER_SIZE).use { output ->
+                input.copyTo(output, FileUtil.BUFFER_SIZE)
+            }
+        }
     }
 
     private fun isManifestEntry(name: String): Boolean {
