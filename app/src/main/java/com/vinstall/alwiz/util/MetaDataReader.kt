@@ -389,25 +389,53 @@ object MetadataReader {
     }
 
     fun readFromApks(context: Context, uri: Uri): AppMeta {
-        val tocMeta = readFromTocPb(context, uri)
-        DebugLog.d("MetadataReader", "toc.pb packageName=${tocMeta?.packageName}")
-
         val tmpFile = File(context.cacheDir, "meta_split_base_${System.nanoTime()}.apk")
         var extracted = false
+        var tocMeta: AppMeta? = null
+        var bestCandidate: String? = null
+        var bestCandidateSize = -1L
+        var hasNonConfigCandidate = false
 
         try {
             FileUtil.openStream(context, uri)?.use { raw ->
                 ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
                     var entry = zip.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory &&
-                            File(entry.name).name.equals("base.apk", ignoreCase = true)
-                        ) {
-                            tmpFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
-                                zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                    while (entry != null && !extracted) {
+                        if (!entry.isDirectory) {
+                            val name = entry.name
+                            val baseName = File(name).name
+                            val lower = baseName.lowercase()
+
+                            when {
+                                name.equals("toc.pb", ignoreCase = true) && tocMeta == null -> {
+                                    val bytes = zip.readBytes()
+                                    DebugLog.d("MetadataReader", "toc.pb size=${bytes.size}")
+                                    tocMeta = parseTocPb(bytes)
+                                }
+                                baseName.equals("base.apk", ignoreCase = true) -> {
+                                    tmpFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
+                                        zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                                    }
+                                    extracted = true
+                                    DebugLog.d("MetadataReader", "Extracted base.apk directly")
+                                }
+                                name.endsWith(".apk") -> {
+                                    val isNonConfig = !lower.contains("config.") && !lower.contains("split_")
+                                    val size = entry.size.coerceAtLeast(0L)
+                                    if (isNonConfig) {
+                                        if (!hasNonConfigCandidate) {
+                                            bestCandidate = name
+                                            bestCandidateSize = size
+                                            hasNonConfigCandidate = true
+                                        }
+                                    } else if (!hasNonConfigCandidate) {
+                                        if (bestCandidate == null || size > bestCandidateSize) {
+                                            bestCandidate = name
+                                            bestCandidateSize = size
+                                        }
+                                    }
+                                }
                             }
-                            extracted = true
-                            break
                         }
                         zip.closeEntry()
                         entry = zip.nextEntry
@@ -415,52 +443,29 @@ object MetadataReader {
                 }
             }
         } catch (e: Exception) {
-            DebugLog.e("MetadataReader", "readFromApks pass1 failed: ${e.message}")
+            DebugLog.e("MetadataReader", "readFromApks scan failed: ${e.message}")
         }
 
-        if (!extracted) {
+        if (!extracted && bestCandidate != null) {
             try {
-                val apkEntries = mutableListOf<Pair<String, Long>>()
                 FileUtil.openStream(context, uri)?.use { raw ->
                     ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
                         var entry = zip.nextEntry
                         while (entry != null) {
-                            if (!entry.isDirectory && entry.name.endsWith(".apk")) {
-                                apkEntries.add(entry.name to entry.size.coerceAtLeast(0L))
+                            if (entry.name == bestCandidate) {
+                                tmpFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
+                                    zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                                }
+                                extracted = true
+                                break
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
                         }
                     }
                 }
-
-                if (apkEntries.isNotEmpty()) {
-                    val nonConfigSplit = apkEntries.firstOrNull { (name, _) ->
-                        val n = File(name).name.lowercase()
-                        !n.contains("config.") && !n.contains("split_")
-                    }
-                    val targetEntry = nonConfigSplit ?: apkEntries.maxByOrNull { it.second }!!
-                    val entryName = targetEntry.first
-
-                    FileUtil.openStream(context, uri)?.use { raw ->
-                        ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
-                            var entry = zip.nextEntry
-                            while (entry != null) {
-                                if (entry.name == entryName) {
-                                    tmpFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
-                                        zip.copyTo(out, FileUtil.BUFFER_SIZE)
-                                    }
-                                    extracted = true
-                                    break
-                                }
-                                zip.closeEntry()
-                                entry = zip.nextEntry
-                            }
-                        }
-                    }
-                }
             } catch (e: Exception) {
-                DebugLog.e("MetadataReader", "readFromApks pass2 failed: ${e.message}")
+                DebugLog.e("MetadataReader", "readFromApks extract failed: ${e.message}")
             }
         }
 
@@ -474,31 +479,6 @@ object MetadataReader {
             versionName = apkMeta.versionName.ifEmpty { tocMeta?.versionName ?: "" },
             appIcon = apkMeta.appIcon ?: tocMeta?.appIcon
         )
-    }
-
-    private fun readFromTocPb(context: Context, uri: Uri): AppMeta? {
-        return try {
-            FileUtil.openStream(context, uri)?.use { raw ->
-                ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
-                    var entry = zip.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory &&
-                            entry.name.equals("toc.pb", ignoreCase = true)
-                        ) {
-                            val bytes = zip.readBytes()
-                            DebugLog.d("MetadataReader", "toc.pb size=${bytes.size}")
-                            return@use parseTocPb(bytes)
-                        }
-                        zip.closeEntry()
-                        entry = zip.nextEntry
-                    }
-                    null
-                }
-            }
-        } catch (e: Exception) {
-            DebugLog.e("MetadataReader", "readFromTocPb failed: ${e.message}")
-            null
-        }
     }
 
     private fun parseTocPb(data: ByteArray): AppMeta? {

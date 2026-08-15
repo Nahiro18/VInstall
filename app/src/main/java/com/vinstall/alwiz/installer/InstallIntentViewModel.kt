@@ -8,9 +8,12 @@ import androidx.lifecycle.viewModelScope
 import com.vinstall.alwiz.installer.ApkmInstaller
 import com.vinstall.alwiz.installer.ApkvInstaller
 import com.vinstall.alwiz.installer.ApksInstaller
+import com.vinstall.alwiz.history.InstallHistoryManager
 import com.vinstall.alwiz.installer.SplitInstaller
 import com.vinstall.alwiz.installer.XapkInstaller
 import com.vinstall.alwiz.installer.ZipApkInstaller
+import com.vinstall.alwiz.model.HistoryStatus
+import com.vinstall.alwiz.model.InstallHistoryEntry
 import com.vinstall.alwiz.model.InstallState
 import com.vinstall.alwiz.model.PackageFormat
 import com.vinstall.alwiz.settings.AppSettings
@@ -30,6 +33,8 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _state = MutableStateFlow<InstallState>(InstallState.Idle)
     val state: StateFlow<InstallState> = _state
+
+    private var installStartTime: Long = 0L
 
     fun loadPackageInfo(uri: Uri): MutableStateFlow<ConfirmationBottomSheet.AppInstallInfo?> {
         val infoFlow = MutableStateFlow<ConfirmationBottomSheet.AppInstallInfo?>(null)
@@ -102,6 +107,7 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
         val fileState = _state.value as? InstallState.FileSelected ?: return
         viewModelScope.launch(Dispatchers.IO) {
             InstallHelper.reset()
+            installStartTime = System.currentTimeMillis()
             _state.value = InstallState.Analyzing
             
             // --- CAMBIO: Usar SplitInstaller directamente para APKs simples ---
@@ -163,6 +169,7 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
             // -------------------------------------------------------------------
 
             if (result.isFailure) {
+                recordHistory(context, fileState, HistoryStatus.FAILED, result.exceptionOrNull()?.message ?: "Install failed")
                 _state.value = InstallState.Error(result.exceptionOrNull()?.message ?: "Install failed")
                 if (AppSettings.isClearCacheAfterInstall(context)) FileUtil.clearCache(context)
                 return@launch
@@ -175,24 +182,55 @@ class InstallIntentViewModel(app: Application) : AndroidViewModel(app) {
             if (AppSettings.isClearCacheAfterInstall(context)) FileUtil.clearCache(context)
 
             _state.value = when {
-                installResult == null -> InstallState.Error("Installation timed out")
+                installResult == null -> {
+                    recordHistory(context, fileState, HistoryStatus.FAILED, "Installation timed out")
+                    InstallState.Error("Installation timed out")
+                }
                 installResult is InstallHelper.Result.Success -> {
                     if (AppSettings.getInstallMode(context) != InstallMode.NORMAL) {
                         NotificationHelper.postInstallSuccess(context, fileState.packageName, fileState.appLabel)
                     }
+                    recordHistory(context, fileState, HistoryStatus.SUCCESS, "")
                     InstallState.Success(fileState.packageName)
                 }
                 installResult is InstallHelper.Result.Failure -> {
                     val msg = installResult.message ?: "Install failed"
                     if (msg.contains("cancelled", ignoreCase = true) || msg.contains("aborted", ignoreCase = true)) {
+                        recordHistory(context, fileState, HistoryStatus.CANCELLED, msg)
                         InstallState.Cancelled(msg)
                     } else {
+                        recordHistory(context, fileState, HistoryStatus.FAILED, msg)
                         InstallState.Error(msg)
                     }
                 }
-                else -> InstallState.Error("Unknown result")
+                else -> {
+                    recordHistory(context, fileState, HistoryStatus.FAILED, "Unknown result")
+                    InstallState.Error("Unknown result")
+                }
             }
         }
+    }
+
+    private fun recordHistory(
+        context: android.app.Application,
+        fileState: InstallState.FileSelected,
+        status: HistoryStatus,
+        detail: String
+    ) {
+        val entry = InstallHistoryEntry(
+            id = java.util.UUID.randomUUID().toString(),
+            timestamp = System.currentTimeMillis(),
+            appLabel = fileState.appLabel,
+            packageName = fileState.packageName,
+            versionName = fileState.versionName,
+            format = fileState.format.label,
+            fileSize = fileState.size,
+            status = status,
+            detail = detail,
+            installMode = AppSettings.getInstallMode(context).name,
+            durationMs = System.currentTimeMillis() - installStartTime
+        )
+        InstallHistoryManager.add(context, entry)
     }
 
     private fun getInstalledVersionInfo(packageName: String): Pair<String, Long>? {
