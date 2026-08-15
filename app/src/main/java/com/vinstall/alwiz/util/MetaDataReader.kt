@@ -423,19 +423,42 @@ object MetadataReader {
 
         if (!extracted) {
             try {
+                val apkEntries = mutableListOf<Pair<String, Long>>()
                 FileUtil.openStream(context, uri)?.use { raw ->
                     ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
                         var entry = zip.nextEntry
                         while (entry != null) {
                             if (!entry.isDirectory && entry.name.endsWith(".apk")) {
-                                tmpFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
-                                    zip.copyTo(out, FileUtil.BUFFER_SIZE)
-                                }
-                                extracted = true
-                                break
+                                apkEntries.add(entry.name to entry.size.coerceAtLeast(0L))
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
+                        }
+                    }
+                }
+
+                if (apkEntries.isNotEmpty()) {
+                    val nonConfigSplit = apkEntries.firstOrNull { (name, _) ->
+                        val n = File(name).name.lowercase()
+                        !n.contains("config.") && !n.contains("split_")
+                    }
+                    val targetEntry = nonConfigSplit ?: apkEntries.maxByOrNull { it.second }!!
+                    val entryName = targetEntry.first
+
+                    FileUtil.openStream(context, uri)?.use { raw ->
+                        ZipInputStream(raw.buffered(FileUtil.BUFFER_SIZE)).use { zip ->
+                            var entry = zip.nextEntry
+                            while (entry != null) {
+                                if (entry.name == entryName) {
+                                    tmpFile.outputStream().buffered(FileUtil.BUFFER_SIZE).use { out ->
+                                        zip.copyTo(out, FileUtil.BUFFER_SIZE)
+                                    }
+                                    extracted = true
+                                    break
+                                }
+                                zip.closeEntry()
+                                entry = zip.nextEntry
+                            }
                         }
                     }
                 }
@@ -448,13 +471,12 @@ object MetadataReader {
 
         val apkMeta = readApkFile(context, tmpFile.absolutePath)
 
-        // --- MODIFICATION FIX ---
-        // Prioritize the packageName extracted by Android (apkMeta).
-        // Only use the manually extracted one from toc.pb if apkMeta is empty.
         return apkMeta.copy(
-            packageName = apkMeta.packageName.ifEmpty { tocMeta?.packageName ?: "" }
+            packageName = apkMeta.packageName.ifEmpty { tocMeta?.packageName ?: "" },
+            appLabel = apkMeta.appLabel.ifEmpty { tocMeta?.appLabel ?: "" },
+            versionName = apkMeta.versionName.ifEmpty { tocMeta?.versionName ?: "" },
+            appIcon = apkMeta.appIcon ?: tocMeta?.appIcon
         )
-        // -----------------------------------
     }
 
     private fun readFromTocPb(context: Context, uri: Uri): AppMeta? {
