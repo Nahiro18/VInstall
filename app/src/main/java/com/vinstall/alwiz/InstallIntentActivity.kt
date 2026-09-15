@@ -22,7 +22,7 @@ class InstallIntentActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityInstallIntentBinding
     private val viewModel: InstallIntentViewModel by viewModels()
-    private var dialogController: DialogController? = nil
+    private var dialogController: DialogController? = null
     private var confirmShowing = false
     private var passwordDialogShown = false
 
