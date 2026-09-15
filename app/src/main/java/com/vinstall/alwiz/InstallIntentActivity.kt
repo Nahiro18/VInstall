@@ -12,6 +12,7 @@ import com.google.android.material.textfield.TextInputLayout
 import com.vinstall.alwiz.databinding.ActivityInstallIntentBinding
 import com.vinstall.alwiz.installer.InstallIntentViewModel
 import com.vinstall.alwiz.model.InstallState
+import com.vinstall.alwiz.settings.AppSettings
 import com.vinstall.alwiz.settings.DialogController
 import com.vinstall.alwiz.settings.DialogHelper
 import com.vinstall.alwiz.ui.ConfirmationBottomSheet
@@ -21,11 +22,19 @@ class InstallIntentActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityInstallIntentBinding
     private val viewModel: InstallIntentViewModel by viewModels()
-    private var dialogController: DialogController? = null
+    private var dialogController: DialogController? = nil
     private var confirmShowing = false
     private var passwordDialogShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply correct transparent theme based on user preference (AMOLED vs base)
+        val theme = AppSettings.getTheme(this)
+        if (theme == "amoled") {
+            setTheme(R.style.Theme_UniversalInstaller_AMOLED_Transparent)
+        } else {
+            setTheme(R.style.Theme_UniversalInstaller_Transparent)
+        }
+
         super.onCreate(savedInstanceState)
         binding = ActivityInstallIntentBinding.inflate(layoutInflater)
         setContentView(binding.root)

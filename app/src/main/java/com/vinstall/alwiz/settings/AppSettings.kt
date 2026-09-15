@@ -76,7 +76,7 @@ object AppSettings {
 
     fun applyActivityTheme(activity: android.app.Activity) {
         val theme = getTheme(activity)
-        if (theme == "amoled" && activity::class.java.simpleName != "InstallIntentActivity") {
+        if (theme == "amoled") {
             activity.setTheme(com.vinstall.alwiz.R.style.Theme_UniversalInstaller_AMOLED)
         }
     }

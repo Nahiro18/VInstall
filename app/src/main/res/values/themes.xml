@@ -45,4 +45,13 @@
         <item name="android:windowContentTransitions">true</item>
     </style>
 
+    <!-- Tema AMOLED transparente (para InstallIntentActivity en modo AMOLED) -->
+    <style name="Theme.UniversalInstaller.AMOLED.Transparent" parent="Theme.UniversalInstaller.AMOLED">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
 </resources>
